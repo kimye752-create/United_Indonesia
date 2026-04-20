@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy-primary: #1e2d3d;
+  --navy-light: #334961;
+  --white: #ffffff;
+  --gray-bg: #f5f7fa;
+  --gray-border: #e2e8f0;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+/* ReactMarkdown 스타일링 - B2B 보고서 톤 */
+.prose-output h1 {
+  @apply text-xl font-bold text-navy-900 border-b border-navy-200 pb-2 mb-4;
+}
+.prose-output h2 {
+  @apply text-lg font-semibold text-navy-800 mt-6 mb-2;
+}
+.prose-output h3 {
+  @apply text-base font-semibold text-navy-700 mt-4 mb-2;
+}
+.prose-output p {
+  @apply text-gray-700 leading-relaxed mb-3;
+}
+.prose-output ul, .prose-output ol {
+  @apply my-3 pl-6 space-y-1;
+}
+.prose-output table {
+  @apply w-full border-collapse border border-gray-300 my-4 text-sm;
+}
+.prose-output th, .prose-output td {
+  @apply border border-gray-300 px-3 py-2 text-left;
+}
+.prose-output th {
+  @apply bg-navy-50 font-semibold text-navy-800;
+}
+.prose-output tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+.prose-output strong {
+  @apply font-semibold text-navy-800;
+}
+.prose-output code {
+  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm;
+}

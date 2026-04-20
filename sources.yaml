@@ -1,0 +1,128 @@
+# 인도네시아(ID) 완제의약품 시장조사 — 크롤링 소스 메타
+country: "ID"
+currency: "IDR"
+
+sources:
+
+  # ══════════════════════════════════════════════════════
+  # TIER 1: 규제/인허가 (BPOM)
+  # ══════════════════════════════════════════════════════
+  bpom_cek:
+    tier: 1
+    url_seed: "https://cekbpom.pom.go.id/"
+    access_method: html_static
+    rate_limit_qps: 0.3
+    cron_slot: "0 22 * * 1"
+    note: "인도네시아 식약청(BPOM) 제품 등록 검색. 성분명(INN) 쿼리 → 등록번호(ML/MD), 제조사(Pendaftar), 제형 수집"
+
+  bpom_registrasi:
+    tier: 1
+    url_seed: "https://registrasiobat.pom.go.id/"
+    access_method: html_static
+    rate_limit_qps: 0.2
+    cron_slot: "10 22 * * 1"
+    note: "BPOM 의약품 등록 관리 포털 — 최신 규제 개정, 안전성 서한, BE 시험 대조약 목록 공지사항 수집"
+
+  # ══════════════════════════════════════════════════════
+  # TIER 1: 공공 조달 (FORNAS + e-Katalog LKPP)
+  # ══════════════════════════════════════════════════════
+  fornas:
+    tier: 1
+    url_seed: "https://e-fornas.kemkes.go.id/"
+    access_method: html_static
+    rate_limit_qps: 0.2
+    cron_slot: "20 22 * * 1"
+    note: "국가 처방집(FORNAS) 등재 의약품 목록 — JKN 급여 인정 여부 판별 핵심. PDF + 웹 DB 병행 수집"
+
+  ekatalog:
+    tier: 1
+    url_seed: "https://e-katalog.lkpp.go.id/"
+    access_method: html_static
+    rate_limit_qps: 0.3
+    cron_slot: "30 22 * * 1"
+    note: "LKPP 전자 조달 카탈로그 — 성분별 정부 납품 최저가/최고가/중간값(Harga Satuan) 수집. 가격 협상 기준점"
+
+  # ══════════════════════════════════════════════════════
+  # TIER 2: B2C 소매·원격의료 플랫폼
+  # ══════════════════════════════════════════════════════
+  halodoc:
+    tier: 2
+    url_seed: "https://www.halodoc.com/obat-dan-vitamin"
+    access_method: playwright
+    rate_limit_qps: 0.2
+    cron_slot: "0 23 * * *"
+    note: "인도네시아 최대 헬스테크 플랫폼. Elasticsearch 기반 동적 렌더링 → Playwright 필수. 소매 정가·할인율·경쟁 제네릭 노출 빈도 수집"
+
+  k24klik:
+    tier: 2
+    url_seed: "https://www.k24klik.com"
+    access_method: html_static
+    rate_limit_qps: 0.5
+    cron_slot: "5 23 * * *"
+    note: "Apotek K-24 공식 온라인 약국. sitemap.xml로 전체 카탈로그 URL 확보 후 가격 전수 조사 가능"
+
+  # ══════════════════════════════════════════════════════
+  # TIER 2: B2B 유통 플랫폼 (SwipeRx / MIMS)
+  # ══════════════════════════════════════════════════════
+  swiperx:
+    tier: 2
+    url_seed: "https://www.swiperx.com/"
+    access_method: html_static
+    rate_limit_qps: 0.3
+    cron_slot: "15 23 * * 1"
+    note: "동남아 최대 B2B 약국 네트워크. 인도네시아 12,000+ 약국 가입. 도매가·번들 행사·재고 부족 수집"
+
+  mims_id:
+    tier: 2
+    url_seed: "https://www.mims.com/indonesia/drug"
+    access_method: html_static
+    rate_limit_qps: 0.3
+    cron_slot: "30 23 * * 1"
+    note: "MIMS 인도네시아 의약품 데이터베이스. 경쟁 제품 MIMS Class별 현황, 적응증, 용법·용량 수집"
+
+  # ══════════════════════════════════════════════════════
+  # TIER 3: 통관·무역 통계 (INSW + BPS)
+  # ══════════════════════════════════════════════════════
+  insw:
+    tier: 3
+    url_seed: "https://insw.go.id/intr"
+    access_method: html_static
+    rate_limit_qps: 0.2
+    cron_slot: "0 1 * * 1"
+    note: "인도네시아 국가 단일 창구 — HS Code 3004/3006 관세율, LARTAS 제한, SKI/할랄 인증 의무 여부 수집"
+
+  bps_trade:
+    tier: 3
+    url_seed: "https://bps.go.id/"
+    access_method: html_static
+    rate_limit_qps: 0.2
+    cron_slot: "0 2 * * 1"
+    note: "인도네시아 중앙 통계청 — 월별 수출입 통계, 제약 부문 수입 상대국(미국·독일·인도·중국) 비중 추적"
+
+  # ══════════════════════════════════════════════════════
+  # TIER 3: 전문 의학회 가이드라인
+  # ══════════════════════════════════════════════════════
+  perki:
+    tier: 3
+    url_seed: "https://www.inaheart.org/guidelines-statements/"
+    access_method: html_static
+    rate_limit_qps: 0.2
+    cron_slot: "0 3 * * 1"
+    note: "인도네시아 심혈관 전문의 학회(PERKI) — Statin/Omega-3/Cilostazol 병용 권고 가이드라인 PDF 수집"
+
+  pgi:
+    tier: 3
+    url_seed: "https://pbpgigastro.com/en/guidelines/consensus/"
+    access_method: html_static
+    rate_limit_qps: 0.2
+    cron_slot: "10 3 * * 1"
+    note: "인도네시아 소화기 학회(PGI) — Mosapride(프로키네틱) 처방 컨센서스, H.pylori 관리 가이드라인"
+
+  # ══════════════════════════════════════════════════════
+  # TIER 0: 로컬 파일 (제품 브로슈어 PDF)
+  # ══════════════════════════════════════════════════════
+  basic_files:
+    tier: 0
+    access_method: local_pdf
+    path: "datas/basic_files/"
+    note: "8개 제품 브로슈어 — 성분, 적응증, 특허 기술 근거 텍스트"
