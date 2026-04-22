@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "docx": "^9.6.1",
     "lucide-react": "^0.460.0",
     "next": "14.2.18",
     "openai": "^4.104.0",
@@ -29,5 +30,22 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3"
-  }
+  },
+  "description": "글로벌 무역·수출 영업 전문가를 위한 AI 어시스턴트 대시보드입니다.",
+  "main": "gen_id_report.js",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimye752-create/United_Indonesia.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kimye752-create/United_Indonesia/issues"
+  },
+  "homepage": "https://github.com/kimye752-create/United_Indonesia#readme"
 }

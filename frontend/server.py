@@ -169,6 +169,9 @@ _news_cache: dict[str, Any] = {"data": None, "ts": 0.0}
 _NEWS_TTL = 1800  # 30분 캐시
 
 
+_NEWS_VALID_CATEGORIES = {"BPOM", "JKN", "e-Katalog", "Kemenkes", "제약사", "수출입", "정책", "기타"}
+
+
 def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
     """Perplexity 텍스트 응답에서 뉴스 배열(JSON) 파싱."""
     import re
@@ -177,10 +180,14 @@ def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
     if not text:
         return []
 
-    candidates: list[str] = [text]
-    m = re.search(r"\[\s*\{.*\}\s*\]", text, flags=re.S)
-    if m:
-        candidates.append(m.group(0))
+    # JSON 배열 추출 (마크다운 코드블록 → 최상위 배열 순서로 시도)
+    candidates: list[str] = []
+    for m in re.finditer(r"```(?:json)?\s*(\[.*?\])\s*```", text, flags=re.S):
+        candidates.append(m.group(1))
+    m2 = re.search(r"\[\s*\{.*\}\s*\]", text, flags=re.S)
+    if m2:
+        candidates.append(m2.group(0))
+    candidates.append(text)
 
     for cand in candidates:
         try:
@@ -190,23 +197,99 @@ def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
         if not isinstance(parsed, list):
             continue
         items: list[dict[str, str]] = []
-        for row in parsed[:6]:
+        for row in parsed[:8]:
             if not isinstance(row, dict):
                 continue
             title = str(row.get("title", "") or "").strip()
             if not title:
                 continue
+            cat = str(row.get("category", "") or "기타").strip()
+            if cat not in _NEWS_VALID_CATEGORIES:
+                cat = "기타"
             items.append(
                 {
-                    "title": title,
-                    "source": str(row.get("source", "") or "").strip(),
-                    "date": str(row.get("date", "") or "").strip(),
-                    "link": str(row.get("link", "") or "").strip(),
+                    "title":    title,
+                    "source":   str(row.get("source",   "") or "").strip(),
+                    "date":     str(row.get("date",     "") or "").strip(),
+                    "link":     str(row.get("link",     "") or "").strip(),
+                    "category": cat,
                 }
             )
         if items:
             return items
     return []
+
+
+def _is_korean(text: str) -> bool:
+    """문자열에 한글이 충분히 포함되어 있는지 확인."""
+    korean_chars = sum(1 for c in text if "\uAC00" <= c <= "\uD7A3")
+    return korean_chars >= 2
+
+
+async def _translate_titles_to_korean(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """영문/인니어 제목을 Claude API로 한국어 번역 (한글이 이미 충분하면 스킵)."""
+    import os
+    import httpx
+
+    # 번역이 필요한 항목 추출
+    to_translate = [
+        (i, item["title"])
+        for i, item in enumerate(items)
+        if not _is_korean(item["title"])
+    ]
+    if not to_translate:
+        return items
+
+    claude_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not claude_key:
+        # Claude 키 없으면 원문 그대로 반환
+        return items
+
+    titles_text = "\n".join(f"{idx}. {title}" for idx, (_, title) in enumerate(to_translate, 1))
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": claude_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-haiku-4-5",
+                    "max_tokens": 512,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": (
+                                "다음 의약품/제약 뉴스 제목들을 자연스러운 한국어로 번역해 주세요. "
+                                "번호와 번역된 제목만 출력하고, 설명이나 부연은 생략하세요.\n\n"
+                                f"{titles_text}"
+                            ),
+                        }
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            reply = resp.json()["content"][0]["text"].strip()
+
+        # "1. 번역된 제목" 형식 파싱
+        import re
+        translated_map: dict[int, str] = {}
+        for line in reply.splitlines():
+            m = re.match(r"^(\d+)\.\s+(.+)", line.strip())
+            if m:
+                translated_map[int(m.group(1))] = m.group(2).strip()
+
+        result = [item.copy() for item in items]
+        for seq, (orig_idx, _) in enumerate(to_translate, 1):
+            if seq in translated_map:
+                result[orig_idx]["title"] = translated_map[seq]
+        return result
+    except Exception:
+        # 번역 실패 시 원문 유지
+        return items
 
 
 @app.get("/api/news")
@@ -226,37 +309,50 @@ async def api_news() -> JSONResponse:
     try:
         payload = {
             "model": "sonar-pro",
+            "search_recency_filter": "year",   # 최근 1년 (2025-2026) 기사 우선
             "messages": [
                 {
                     "role": "system",
                     "content": (
-                        "You are an Indonesia pharmaceutical market analyst. "
-                        "Return ONLY a JSON array with up to 6 recent news items. "
-                        "Focus on: BPOM regulations, JKN/FORNAS updates, e-Katalog pricing, "
-                        "major pharma companies (Kalbe Farma, Kimia Farma, Sanbe), market access. "
-                        "All 'title' values MUST be written in Korean (한국어). "
-                        "Translate any Indonesian/English titles into natural Korean."
+                        "You are an Indonesia pharmaceutical market intelligence analyst. "
+                        "Today is April 2026. Focus EXCLUSIVELY on news and events from 2026 (January–April 2026). "
+                        "If 2026 items are fewer than 8, you may add items from late 2025 (Oct–Dec 2025) to fill up. "
+                        "Return ONLY a valid JSON array — no markdown fences, no explanation text, no preamble. "
+                        "Array must contain 6–8 objects. Each object keys:\n"
+                        "  title    — headline in KOREAN (한국어) only, natural fluent translation required\n"
+                        "  source   — publisher/outlet name (English or Indonesian OK)\n"
+                        "  date     — publish date as 'YYYY-MM-DD' or 'YYYY년 MM월' format\n"
+                        "  link     — direct URL to the article (empty string if unavailable)\n"
+                        "  category — ONE of: BPOM | JKN | e-Katalog | Kemenkes | 제약사 | 수출입 | 정책 | 기타\n\n"
+                        "Topic scope (pick diverse mix):\n"
+                        "  · BPOM drug approvals, registration policy, GMP enforcement\n"
+                        "  · JKN/FORNAS formulary updates, BPJS Kesehatan coverage changes\n"
+                        "  · LKPP e-Katalog HET price revisions, procurement tenders\n"
+                        "  · Kemenkes regulations, TKDN local content rules, halal pharma\n"
+                        "  · Major Indonesian pharma (Kalbe Farma, Kimia Farma, Sanbe, Dexa Medica) corporate news\n"
+                        "  · International pharma companies entering/expanding in Indonesia\n"
+                        "  · Indonesia pharma exports/imports, trade policy\n\n"
+                        "STRICT OUTPUT RULE: Output ONLY the JSON array. No surrounding text whatsoever."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        "Find the latest Indonesia pharmaceutical market and regulatory news "
-                        "(BPOM, Kemenkes, LKPP e-Katalog, JKN, FORNAS). "
-                        "Return a strict JSON array. Each item must have keys: "
-                        "title (Korean translation required), source, date, link. "
-                        "Translate all titles to Korean. Do not use English or Indonesian titles."
+                        "2026년 인도네시아 제약 시장 최신 뉴스 8건을 JSON 배열로 반환하세요. "
+                        "가능한 한 2026년 기사를 우선하고, 부족하면 2025년 4분기 기사로 보충하세요. "
+                        "title은 반드시 자연스러운 한국어 번역. source·date·link·category 모두 포함. "
+                        "JSON 배열 외 다른 텍스트 없이 출력."
                     ),
                 },
             ],
-            "max_tokens": 900,
-            "temperature": 0.2,
+            "max_tokens": 2000,
+            "temperature": 0.1,
         }
         headers = {
             "Authorization": f"Bearer {px_key}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 "https://api.perplexity.ai/chat/completions",
                 headers=headers,
@@ -273,6 +369,9 @@ async def api_news() -> JSONResponse:
         items = _parse_perplexity_news_items(content)
         if not items:
             return JSONResponse({"ok": False, "error": "Perplexity 응답 파싱 실패", "items": []})
+
+        # 영문/인니어 제목이 섞여 있으면 Claude로 한국어 번역
+        items = await _translate_titles_to_korean(items)
 
         data = {"ok": True, "items": items}
         _news_cache["data"] = data
@@ -340,6 +439,91 @@ async def api_exchange() -> JSONResponse:
         return JSONResponse(fallback)
 
 
+# ── 현장 크롤링 API ──────────────────────────────────────────────────────────
+
+_CRAWL_TTL   = 1800  # 30분 캐시
+_crawl_cache: dict[str, dict[str, Any]] = {}  # key: "{site}:{keyword}"
+
+_SITE_CRAWLERS = {
+    "bpom":      "utils.id_bpom_crawler",
+    "ekatalog":  "utils.id_ekatalog_crawler",
+    "halodoc":   "utils.id_halodoc_crawler",
+    "fornas":    "utils.id_fornas_crawler",
+    "k24klik":   "utils.id_k24klik_crawler",
+    "swiperx":   "utils.id_swiperx_crawler",
+    "mims":      "utils.id_mims_crawler",
+}
+
+_SITE_FN_MAP = {
+    "bpom":     ("search_bpom",     {}),
+    "ekatalog": ("search_ekatalog", {}),
+    "halodoc":  ("search_halodoc",  {}),
+    "fornas":   ("search_fornas",   {}),
+    "k24klik":  ("search_k24klik",  {}),
+    "swiperx":  ("search_swiperx",  {}),
+    "mims":     ("search_mims",     {}),
+}
+
+
+@app.get("/api/crawl/all/{keyword}")
+async def api_crawl_all(keyword: str) -> JSONResponse:
+    """7개 사이트 전체에서 동시 크롤링 (병렬).
+
+    Returns: 사이트별 결과 딕셔너리
+    """
+    import time as _time
+    import importlib
+
+    async def _run_one(site: str) -> tuple[str, list]:
+        try:
+            mod_name = _SITE_CRAWLERS[site]
+            fn_name, fn_kwargs = _SITE_FN_MAP[site]
+            mod = importlib.import_module(mod_name)
+            fn  = getattr(mod, fn_name)
+            items = await fn(keyword, max_results=10, **fn_kwargs)
+            return site, items
+        except Exception as exc:
+            return site, [{"error": str(exc)[:120]}]
+
+    tasks   = [_run_one(site) for site in _SITE_CRAWLERS]
+    results = await asyncio.gather(*tasks)
+    combined: dict[str, Any] = {site: items for site, items in results}
+    total = sum(len(v) for v in combined.values() if isinstance(v, list))
+    return JSONResponse({"ok": True, "keyword": keyword, "total": total, "by_site": combined})
+
+
+@app.get("/api/crawl/{site}/{keyword}")
+async def api_crawl(site: str, keyword: str) -> JSONResponse:
+    """지정 사이트에서 키워드로 크롤링 (30분 캐시).
+
+    site: bpom | ekatalog | halodoc | fornas | k24klik | swiperx | mims
+    keyword: INN 성분명 또는 제품명 (URL 인코딩)
+    """
+    import time as _time
+    import importlib
+
+    site = site.lower().strip()
+    if site not in _SITE_CRAWLERS:
+        return JSONResponse({"ok": False, "error": f"지원하지 않는 사이트: {site}. 가능: {list(_SITE_CRAWLERS)}", "items": []})
+
+    cache_key = f"{site}:{keyword}"
+    cached = _crawl_cache.get(cache_key)
+    if cached and _time.time() - cached["ts"] < _CRAWL_TTL:
+        return JSONResponse(cached["data"])
+
+    try:
+        mod_name = _SITE_CRAWLERS[site]
+        fn_name, fn_kwargs = _SITE_FN_MAP[site]
+        mod = importlib.import_module(mod_name)
+        fn  = getattr(mod, fn_name)
+        items = await fn(keyword, max_results=20, **fn_kwargs)
+        data  = {"ok": True, "site": site, "keyword": keyword, "count": len(items), "items": items}
+        _crawl_cache[cache_key] = {"data": data, "ts": _time.time()}
+        return JSONResponse(data)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "site": site, "keyword": keyword, "error": str(exc)[:200], "items": []})
+
+
 # ── 단일 품목 파이프라인 (분석 + 논문 + PDF) ──────────────────────────────────
 
 _pipeline_tasks: dict[str, dict[str, Any]] = {}
@@ -384,11 +568,11 @@ async def _run_pipeline_for_product(product_key: str) -> None:
         _reports_dir = ROOT / "reports"
         _reports_dir.mkdir(parents=True, exist_ok=True)
 
-        # kup_rows는 Step 0에서 이미 비동기로 가져왔으므로 재사용 (DB 이중 조회 방지)
+        # ID 파이프라인은 Supabase 불필요 — 빈 리스트 전달 (id_export_analyzer 내장 메타 사용)
         _refs_map = {product_key: refs}
         _report = await asyncio.to_thread(
             lambda: build_report(
-                kup_rows,
+                [],
                 datetime.now(_tz.utc).isoformat(),
                 [result],
                 references=_refs_map,
@@ -632,6 +816,206 @@ async def download_report(name: str | None = None, inline: bool = False) -> Any:
     )
 
 
+# ── DOCX 보고서 생성 (gen_id_report.js 연동) ─────────────────────────────────
+
+@app.get("/api/report/docx/generate")
+async def generate_docx_report(
+    report_type: str = "final",  # p1 | p2 | p3 | final
+    product_key: str = "",
+) -> Any:
+    """gen_id_report.js를 호출해 DOCX 보고서를 생성하고 반환."""
+    import subprocess
+    import tempfile
+    import re as _re_dx
+    from datetime import datetime, timezone as _tz_dx
+
+    # ── 데이터 수집 ────────────────────────────────────────────────────────────
+    # P1: 최신 시장조사 파이프라인 결과
+    p1_result = None
+    for key, task in _pipeline_tasks.items():
+        if task.get("result"):
+            p1_result = task["result"]
+            if not product_key:
+                product_key = key
+            break
+    if p1_result is None and _custom_task.get("result"):
+        p1_result = _custom_task["result"]
+
+    # P2: AI 가격 분석 결과
+    p2_extracted  = _p2_ai_task.get("extracted")  if _p2_ai_task else None
+    p2_analysis   = _p2_ai_task.get("analysis")   if _p2_ai_task else None
+    p2_rates      = _p2_ai_task.get("exchange_rates") if _p2_ai_task else None
+
+    # P3: 바이어 발굴 결과
+    p3_buyers = _buyer_task.get("buyers", []) if _buyer_task else []
+
+    # ── meta ───────────────────────────────────────────────────────────────────
+    prod_label = _PROD_LABELS.get(product_key, p1_result.get("trade_name", "미상") if p1_result else "미상")
+    inn_label  = (p1_result.get("inn", "") if p1_result else
+                  (p2_extracted.get("product_name", "") if p2_extracted else ""))
+    today_str  = datetime.now(_tz_dx.utc).strftime("%Y년 %m월 %d일")
+
+    data_json: dict[str, Any] = {
+        "meta": {
+            "country":      "인도네시아",
+            "company":      "한국유나이티드제약(주)",
+            "date":         today_str,
+            "product_name": prod_label,
+            "inn":          inn_label,
+            "product_key":  product_key,
+        },
+    }
+
+    # ── P1 ────────────────────────────────────────────────────────────────────
+    # 거시지표 폴백 (p1_result에 없을 경우 id_macro에서 주입)
+    from utils.id_macro import get_id_macro as _get_macro
+    _macro_map = {m["label"]: m["value"] for m in _get_macro()}
+
+    if p1_result:
+        # P2에서 추출된 상세 제품 정보도 병합 (ekatalog_price_hint 등)
+        _ref_price = (
+            p1_result.get("ref_price_text") or
+            p1_result.get("price_positioning_pbs") or
+            (p2_extracted.get("ref_price_text") if p2_extracted else "") or ""
+        )
+        _entry = (
+            p1_result.get("entry_pathway") or
+            p1_result.get("basis_procurement") or ""
+        )
+        _risks = p1_result.get("risks_conditions", "")
+
+        # sources: 문자열 목록으로 정규화
+        _raw_sources = p1_result.get("sources", [])
+        _sources_list: list[str] = []
+        for s in _raw_sources:
+            if isinstance(s, dict):
+                _sources_list.append(f"{s.get('name','')}{' — '+s.get('description','') if s.get('description') else ''}")
+            elif s:
+                _sources_list.append(str(s))
+
+        # papers: references 필드 우선, papers 필드 폴백
+        _papers = p1_result.get("references") or p1_result.get("papers", [])
+
+        data_json["p1"] = {
+            "product_name":         p1_result.get("trade_name", prod_label),
+            "inn":                  p1_result.get("inn", inn_label),
+            "dosage_form":          p1_result.get("dosage_form", ""),
+            "therapeutic_area":     p1_result.get("therapeutic_area", ""),
+            "verdict":              p1_result.get("verdict", "미상"),
+            "verdict_label":        {"적합": "수출 적합", "조건부": "조건부 적합", "부적합": "수출 부적합"}.get(
+                                        p1_result.get("verdict", ""), p1_result.get("verdict", "미분석")),
+            "rationale":            p1_result.get("rationale", ""),
+            # 거시지표 (macro DB 우선, 분석 결과 보완)
+            "population":           p1_result.get("population") or _macro_map.get("인구", "2억 8,100만 명"),
+            "gdp_per_capita":       p1_result.get("gdp_per_capita") or _macro_map.get("1인당 GDP", "USD 4,941"),
+            "pharma_market":        p1_result.get("pharma_market") or _macro_map.get("의약품 시장 규모", "USD 87억"),
+            "health_spend":         p1_result.get("health_spend", "GDP 대비 약 3.2%  (WHO 2023)"),
+            "import_dep":           p1_result.get("import_dep") or _macro_map.get("의약품 수입 의존도", "약 90%"),
+            "disease_prevalence":   p1_result.get("disease_prevalence", ""),
+            "related_market":       p1_result.get("related_market", ""),
+            # 섹션별 분석 텍스트
+            "basis_market_medical": p1_result.get("basis_market_medical", ""),
+            "bpom_reg":             p1_result.get("bpom_reg", ""),
+            "entry_pathway":        _entry,
+            "basis_trade":          p1_result.get("basis_trade") or p1_result.get("basis_distribution", ""),
+            "basis_clinical":       p1_result.get("basis_clinical", ""),
+            "basis_regulatory":     p1_result.get("basis_regulatory", ""),
+            # 가격
+            "ref_price_text":       p1_result.get("ref_price_text", ""),
+            "price_positioning_pbs": p1_result.get("price_positioning_pbs") or _ref_price,
+            "ekatalog_price_hint":  p1_result.get("ekatalog_price_hint", ""),
+            # 리스크
+            "risks_conditions":     _risks,
+            # 출처·논문
+            "papers":               _papers,
+            "sources":              _sources_list,
+        }
+    else:
+        data_json["p1"] = None
+
+    # ── P2 ────────────────────────────────────────────────────────────────────
+    if p2_analysis:
+        data_json["p2"] = {
+            "extracted":      p2_extracted or {},
+            "analysis":       p2_analysis,
+            "exchange_rates": p2_rates or {"usd_idr": 16200, "idr_krw": 0.082, "usd_krw": 1399},
+        }
+    else:
+        data_json["p2"] = None
+
+    # ── P3 ────────────────────────────────────────────────────────────────────
+    if p3_buyers:
+        data_json["p3"] = {"buyers": p3_buyers}
+    else:
+        data_json["p3"] = None
+
+    # ── 타입 검증 ───────────────────────────────────────────────────────────────
+    if report_type not in ("p1", "p2", "p3", "final"):
+        raise HTTPException(400, f"report_type must be p1|p2|p3|final, got: {report_type}")
+
+    # ── 필수 데이터 체크 ────────────────────────────────────────────────────────
+    needed = {"p1": p1_result, "p2": p2_analysis, "p3": p3_buyers or None}
+    if report_type == "final":
+        missing = [k for k, v in needed.items() if not v]
+        if missing:
+            raise HTTPException(400, f"최종 보고서 생성에 필요한 데이터가 없습니다: {', '.join(missing).upper()}. 각 분석을 먼저 실행하세요.")
+    elif report_type == "p1" and not p1_result:
+        raise HTTPException(400, "P1(시장조사) 분석이 완료되지 않았습니다. 분석 실행 후 다시 시도하세요.")
+    elif report_type == "p2" and not p2_analysis:
+        raise HTTPException(400, "P2(가격전략) 분석이 완료되지 않았습니다. AI 가격 분석 후 다시 시도하세요.")
+    elif report_type == "p3" and not p3_buyers:
+        raise HTTPException(400, "P3(바이어) 분석이 완료되지 않았습니다. 바이어 발굴 후 다시 시도하세요.")
+
+    # ── 파일 생성 ───────────────────────────────────────────────────────────────
+    _ts_dx = datetime.now(_tz_dx.utc).strftime("%Y%m%d_%H%M%S")
+    _safe_prod = _re_dx.sub(r"[^\w가-힣]", "_", prod_label)[:20] or "product"
+    docx_name   = f"ID_{report_type}_{_safe_prod}_{_ts_dx}.docx"
+    docx_path   = ROOT / "reports" / docx_name
+    (ROOT / "reports").mkdir(parents=True, exist_ok=True)
+
+    # JSON → temp file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", encoding="utf-8", delete=False) as tf:
+        json.dump(data_json, tf, ensure_ascii=False, indent=2)
+        tmp_json = tf.name
+
+    # node 실행
+    gen_script = ROOT / "gen_id_report.js"
+    try:
+        proc = await asyncio.to_thread(
+            lambda: subprocess.run(
+                ["node", str(gen_script), tmp_json, str(docx_path), "--type", report_type],
+                capture_output=True,
+                text=True,
+                cwd=str(ROOT),
+                timeout=60,
+            )
+        )
+        if proc.returncode != 0:
+            err_detail = (proc.stderr or proc.stdout or "")[:400]
+            raise HTTPException(500, f"DOCX 생성 실패 (node exitcode={proc.returncode}): {err_detail}")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "DOCX 생성 타임아웃 (60s). Node.js 환경을 확인하세요.")
+    finally:
+        import os as _os_dx
+        try:
+            _os_dx.unlink(tmp_json)
+        except Exception:
+            pass
+
+    if not docx_path.is_file():
+        raise HTTPException(500, "DOCX 파일이 생성되지 않았습니다.")
+
+    type_labels = {"p1": "시장조사", "p2": "가격전략", "p3": "바이어발굴", "final": "최종보고서"}
+    dl_name = f"인도네시아_{type_labels.get(report_type, report_type)}_{_safe_prod}_{_ts_dx}.docx"
+
+    return FileResponse(
+        str(docx_path),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=dl_name,
+        content_disposition_type="attachment",
+    )
+
+
 # ── 2공정 가격 전략 PDF ───────────────────────────────────────────────────────
 
 class P2ReportBody(BaseModel):
@@ -778,17 +1162,22 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         await _emit({"phase": "p2_pipeline", "message": "yfinance 환율 조회", "level": "info"})
 
         exchange_rates: dict[str, Any] = {
-            "sgd_krw": 1085.0, "usd_krw": 1393.0,
-            "sgd_usd": 0.7795, "source": "폴백값 (Yahoo Finance 연결 실패)",
+            "usd_idr": 16200.0,
+            "idr_krw": 0.0864,
+            "usd_krw": 1399.0,
+            "source": "폴백값 (Yahoo Finance 연결 실패)",
         }
         try:
             import yfinance as yf  # type: ignore[import]
 
             def _fetch_rates() -> dict[str, Any]:
+                usd_idr = round(float(yf.Ticker("USDIDR=X").fast_info.last_price), 2)
+                usd_krw = round(float(yf.Ticker("USDKRW=X").fast_info.last_price), 2)
+                idr_krw = round(usd_krw / usd_idr, 6) if usd_idr else 0.0864
                 return {
-                    "sgd_krw": round(float(yf.Ticker("SGDKRW=X").fast_info.last_price), 2),
-                    "usd_krw": round(float(yf.Ticker("USDKRW=X").fast_info.last_price), 2),
-                    "sgd_usd": round(float(yf.Ticker("SGDUSD=X").fast_info.last_price), 4),
+                    "usd_idr": usd_idr,
+                    "idr_krw": idr_krw,
+                    "usd_krw": usd_krw,
                     "source": "Yahoo Finance (실시간)",
                 }
 
@@ -799,58 +1188,107 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         _p2_ai_task["exchange_rates"] = exchange_rates
         await _emit({
             "phase": "p2_pipeline",
-            "message": f"환율 — 1 SGD = {exchange_rates['sgd_krw']} KRW",
+            "message": f"환율 — 1 USD = {exchange_rates['usd_idr']:,.0f} IDR / 1 IDR = {exchange_rates['idr_krw']:.5f} KRW",
             "level": "success",
         })
 
-        # ── Step 4: Claude Haiku — 최종 가격 전략 분석 ──────────────────────────
-        _p2_ai_task.update({"step": "ai_analysis", "step_label": "AI 최종 분석 중…"})
-        await _emit({"phase": "p2_pipeline", "message": "Claude Haiku — 최종 가격 전략 분석", "level": "info"})
+        # ── Step 4: Claude — 공공·민간 이중 시장 FOB 가격 전략 분석 ─────────────
+        _p2_ai_task.update({"step": "ai_analysis", "step_label": "AI 공공·민간 분석 중…"})
+        await _emit({"phase": "p2_pipeline", "message": "Claude — 공공·민간 이중 시장 분석", "level": "info"})
 
         ref_price    = extracted.get("ref_price_sgd") or 0
-        ref_display  = f"SGD {float(ref_price):.2f}" if ref_price else (extracted.get("ref_price_text") or "미확인")
-        sgd_krw      = exchange_rates["sgd_krw"]
-        market_label = "공공 시장 (ALPS/조달청 채널)" if market == "public" else "민간 시장 (병원·약국·체인 채널)"
+        ref_display  = f"IDR {float(ref_price):,.0f}" if ref_price else (extracted.get("ref_price_text") or "미확인")
+        usd_idr      = exchange_rates["usd_idr"]
+        idr_krw      = exchange_rates["idr_krw"]
         verdict_src  = extracted.get("verdict", "미상")
         competitor_json = json.dumps(extracted.get("competitor_prices", []), ensure_ascii=False)
 
-        analysis_prompt = f"""싱가포르 수출 가격 전략을 수립해주세요.
+        analysis_prompt = f"""인도네시아 수출 가격 전략(FOB 역산)을 공공·민간 이중 시장으로 수립해주세요.
 
 ## 추출된 보고서 정보
 - 제품명: {extracted.get('product_name', '미상')}
 - 수출 적합성 판정: {verdict_src}
 - 참조가: {ref_display}
-- 참조가 원문: {extracted.get('ref_price_text', '없음')}
 - HS 코드: {extracted.get('hs_code', '미상')}
-- 시장: {market_label}
-- 현재 환율: 1 SGD = {sgd_krw:.2f} KRW (실시간 Yahoo Finance)
+- 현재 환율: 1 USD = {usd_idr:,.0f} IDR / 1 IDR = {idr_krw:.6f} KRW
 - 경쟁사 가격: {competitor_json}
 - 시장 맥락: {extracted.get('market_context', '정보 없음')}
 
+## 인도네시아 FOB 역산 구조
+FOB가 = 현지 유통가 ÷ (1 + 병원마진) ÷ (1 + 유통사마진) ÷ (1 + 수입관세) - 운임·보험
+
+**공공 시장 (e-Katalog/BPJS-Kesehatan):**
+- 수입관세(bea masuk): 의약품 5~10%
+- 유통사 마진: 15~22% (공공 입찰 유통 구조)
+- 병원·BPJS 마진: 10~18%
+- 에이전트 수수료: 3~5%
+- 운임·보험: 3~6%
+
+**민간 시장 (병원·약국·Halodoc/K24):**
+- 수입관세: 5~10%
+- 유통사 마진: 20~28%
+- 소매(약국/병원) 마진: 30~40%
+- PPN 부가세: 11% (고정)
+- 에이전트 수수료: 3~8%
+- 운임·보험: 3~6%
+
 ## 요청
-1. 싱가포르 제약 시장의 특성, 판정 결과, 시장 구분을 종합해 최종 수출 권고가를 산정하세요.
-2. 시나리오는 공격·평균·보수 3개로 구분하세요. 각 시나리오마다:
-   - 가격 근거·포지셔닝 전략·적합 상황을 포함한 한 문단(3-4문장)으로 reason을 작성하세요.
-   - 구체적인 계산식을 formula 필드에 작성하세요 (예: SGD 9.87 × 0.85 = SGD 8.39).
-3. rationale은 3-4문장으로 시장 근거·판정 근거·리스크를 포함해 서술하세요.
+제품 특성, 경쟁사 가격, 시장 맥락을 종합해 공공·민간 각각 3개 시나리오(저가진입/기준/프리미엄)를 산정하세요.
+각 시나리오의 fob_factors에는 **이 제품과 시장에 최적화된 실제 비율**을 제시하세요.
+모든 가격은 **IDR** 단위로 제시하세요. 참조가가 IDR이 아니면 환율로 변환하세요.
 
 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {{
-  "final_price_sgd": 숫자,
-  "rationale": "산정 이유 3-4문장",
-  "scenarios": [
-    {{"name": "공격", "price_sgd": 숫자, "reason": "저마진 포지셔닝 정의·근거·적합 상황을 포함한 한 문단", "formula": "계산식 (예: SGD 9.87 × 0.85 = SGD 8.39)"}},
-    {{"name": "평균", "price_sgd": 숫자, "reason": "중간 포지셔닝 정의·근거·적합 상황을 포함한 한 문단", "formula": "계산식"}},
-    {{"name": "보수", "price_sgd": 숫자, "reason": "고마진 포지셔닝 정의·근거·적합 상황을 포함한 한 문단", "formula": "계산식"}}
-  ]
+  "rationale": "시장 전반적 근거 2-3문장",
+  "public": {{
+    "market_note": "공공 시장 특이사항 1문장",
+    "scenarios": [
+      {{
+        "name": "저가 진입",
+        "price_idr": 숫자,
+        "fob_result_idr": 숫자,
+        "reason": "포지셔닝 근거 1-2문장",
+        "fob_factors": [
+          {{"name": "수입관세", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "유통사 마진", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "병원·BPJS 마진", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "에이전트 수수료", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "운임·보험", "type": "pct_deduct", "value": 숫자, "rationale": "CIF→FOB 운임 차감"}}
+        ]
+      }},
+      {{"name": "기준", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}},
+      {{"name": "프리미엄", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}}
+    ]
+  }},
+  "private": {{
+    "market_note": "민간 시장 특이사항 1문장",
+    "scenarios": [
+      {{
+        "name": "저가 진입",
+        "price_idr": 숫자,
+        "fob_result_idr": 숫자,
+        "reason": "포지셔닝 근거 1-2문장",
+        "fob_factors": [
+          {{"name": "수입관세", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "유통사 마진", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "소매 마진", "type": "pct_deduct", "value": 숫자, "rationale": "약국·병원 소매 마진"}},
+          {{"name": "PPN 부가세", "type": "pct_deduct", "value": 11, "rationale": "인도네시아 부가세 고정 11%"}},
+          {{"name": "에이전트 수수료", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
+          {{"name": "운임·보험", "type": "pct_deduct", "value": 숫자, "rationale": "CIF→FOB 운임 차감"}}
+        ]
+      }},
+      {{"name": "기준", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}},
+      {{"name": "프리미엄", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}}
+    ]
+  }}
 }}
 
-참조가가 미확인이라면 시장 데이터·경쟁사·제품 특성을 기반으로 합리적인 가격을 추정하세요."""
+참조가가 미확인이면 경쟁사 가격·제품 특성·HS코드를 기반으로 합리적인 IDR 가격을 추정하세요."""
 
         analysis_resp = await asyncio.to_thread(
             lambda: client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=2048,
+                max_tokens=4096,
                 messages=[{"role": "user", "content": analysis_prompt}],
             )
         )
@@ -862,27 +1300,56 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
             if m_json2:
                 analysis = json.loads(m_json2.group(0))
         except Exception:
-            final_est = (ref_price * 0.30) if ref_price else 0
+            # 폴백: 기본 IDR 추정값으로 두 시장 공통 구조 생성
+            base_idr = int(ref_price * usd_idr * 0.3) if ref_price and usd_idr else 50000
+            def _mk_fob_factors_pub(mult: float) -> list:
+                return [
+                    {"name": "수입관세", "type": "pct_deduct", "value": 7.5, "rationale": "인도네시아 의약품 평균 관세"},
+                    {"name": "유통사 마진", "type": "pct_deduct", "value": 18.0, "rationale": "공공 입찰 유통 마진"},
+                    {"name": "병원·BPJS 마진", "type": "pct_deduct", "value": 15.0, "rationale": "공공 병원 약품 마진"},
+                    {"name": "에이전트 수수료", "type": "pct_deduct", "value": round(3 * mult, 1), "rationale": "현지 에이전트"},
+                    {"name": "운임·보험", "type": "pct_deduct", "value": 4.0, "rationale": "CIF→FOB 운임"},
+                ]
+            def _mk_fob_factors_pri(mult: float) -> list:
+                return [
+                    {"name": "수입관세", "type": "pct_deduct", "value": 7.5, "rationale": "인도네시아 의약품 평균 관세"},
+                    {"name": "유통사 마진", "type": "pct_deduct", "value": 23.0, "rationale": "민간 도매 유통 마진"},
+                    {"name": "소매 마진", "type": "pct_deduct", "value": 35.0, "rationale": "약국·민간병원 소매 마진"},
+                    {"name": "PPN 부가세", "type": "pct_deduct", "value": 11.0, "rationale": "부가세 고정 11%"},
+                    {"name": "에이전트 수수료", "type": "pct_deduct", "value": round(4 * mult, 1), "rationale": "현지 에이전트"},
+                    {"name": "운임·보험", "type": "pct_deduct", "value": 4.0, "rationale": "CIF→FOB 운임"},
+                ]
+            def _calc_fob(price: int, factors: list) -> int:
+                p = float(price)
+                for f in factors:
+                    p *= (1 - f["value"] / 100)
+                return max(1, int(p))
+            def _mk_scenarios(base: int, fob_fn) -> list:
+                mults = [0.85, 1.0, 1.18]
+                names = ["저가 진입", "기준", "프리미엄"]
+                return [{
+                    "name": names[i],
+                    "price_idr": int(base * mults[i]),
+                    "fob_result_idr": _calc_fob(int(base * mults[i]), fob_fn(mults[i])),
+                    "reason": f"{'저마진 점유율 확대' if i==0 else '표준 마진 균형' if i==1 else '프리미엄 포지셔닝'}",
+                    "fob_factors": fob_fn(mults[i]),
+                } for i in range(3)]
             analysis = {
-                "final_price_sgd": round(final_est, 2),
-                "rationale": "AI 응답 파싱 중 오류가 발생했습니다. 기본값 30% 비율로 산정합니다.",
-                "scenarios": [
-                    {"name": "공격", "price_sgd": round(final_est * 0.88, 2),
-                     "reason": "저마진 포지셔닝 — 시장 진입 초기, 자사가 손해를 감수하며 가격경쟁력을 앞세워 점유율을 선점합니다.",
-                     "formula": f"SGD {final_est:.2f} × 0.88 = SGD {round(final_est * 0.88, 2):.2f}"},
-                    {"name": "평균", "price_sgd": round(final_est, 2),
-                     "reason": "중간 포지셔닝 — 리스크와 마진의 균형을 유지하는 기본 산정가입니다.",
-                     "formula": f"SGD {final_est:.2f} (기준가 그대로)"},
-                    {"name": "보수", "price_sgd": round(final_est * 1.12, 2),
-                     "reason": "고마진 포지셔닝 — 자사 제품이 시장 내 자리를 잡은 이후 마진율을 높여 이익 확대를 노립니다.",
-                     "formula": f"SGD {final_est:.2f} × 1.12 = SGD {round(final_est * 1.12, 2):.2f}"},
-                ],
+                "rationale": "AI 응답 파싱 오류. 기본 인도네시아 의약품 FOB 역산 구조로 산정합니다.",
+                "public": {
+                    "market_note": "e-Katalog/BPJS 공공 조달 채널 기준",
+                    "scenarios": _mk_scenarios(base_idr, _mk_fob_factors_pub),
+                },
+                "private": {
+                    "market_note": "Halodoc·K24·민간병원 채널 기준",
+                    "scenarios": _mk_scenarios(int(base_idr * 0.7), _mk_fob_factors_pri),
+                },
             }
 
         _p2_ai_task["analysis"] = analysis
         await _emit({
             "phase": "p2_pipeline",
-            "message": f"최종 분석 완료 — SGD {analysis.get('final_price_sgd', 0):.2f}",
+            "message": "공공·민간 이중 시장 분석 완료",
             "level": "success",
         })
 
@@ -902,23 +1369,27 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         _pdf_path_p2 = _reports_dir_p2 / _pdf_name_p2
 
         # AI 시나리오 필드명 정규화 (PDF generator는 label/price 사용)
-        raw_scenarios = analysis.get("scenarios", []) or []
+        # 공공 시장 시나리오를 대표로 사용 (PDF 호환)
+        pub_scenarios = (analysis.get("public") or {}).get("scenarios", [])
         norm_scenarios = []
-        for sc in raw_scenarios:
+        for sc in pub_scenarios:
             norm_scenarios.append({
-                "label":   sc.get("name", sc.get("label", "")),
-                "price":   sc.get("price_sgd", sc.get("price", 0)),
+                "label":   sc.get("name", ""),
+                "price":   sc.get("fob_result_idr", sc.get("price_idr", 0)),
                 "reason":  sc.get("reason", ""),
-                "formula": sc.get("formula", ""),
+                "formula": f"IDR {sc.get('price_idr', 0):,} → FOB IDR {sc.get('fob_result_idr', 0):,}",
             })
+
+        # 대표 최종 권고가: 공공 기준 시나리오(index 1) FOB값
+        final_idr = pub_scenarios[1].get("fob_result_idr", 0) if len(pub_scenarios) > 1 else 0
 
         p2_data = {
             "product_name": extracted.get("product_name", "미상"),
             "verdict":      verdict_src,
-            "seg_label":    market_label,
-            "base_price":   analysis.get("final_price_sgd", 0),
+            "seg_label":    "공공·민간 이중 시장 (인도네시아)",
+            "base_price":   final_idr,
             "formula_str":  "",
-            "mode_label":   "AI 분석 (Claude Haiku)",
+            "mode_label":   "AI 분석 — 공공·민간 FOB 역산",
             "scenarios":    norm_scenarios,
             "ai_rationale": [analysis.get("rationale", "")],
         }

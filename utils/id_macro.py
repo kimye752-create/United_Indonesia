@@ -8,17 +8,49 @@ from __future__ import annotations
 from typing import Any
 
 _STATIC_MACRO: list[dict] = [
-    {"label": "1인당 GDP",        "value": "$4,941",         "sub": "2024  ·  IMF (현재 달러 기준)"},
-    {"label": "인구",             "value": "2억 8,100만 명",  "sub": "2024  ·  BPS Indonesia"},
-    {"label": "의약품 시장 규모",   "value": "Rp 110.6조",     "sub": "2020  ·  CAGR 10.7% 전망"},
-    {"label": "JKN 가입률",       "value": "약 84%",          "sub": "2024  ·  BPJS Kesehatan"},
+    {
+        "label": "1인당 GDP",
+        "value": "$4,941",
+        "sub": "2024 · IMF",
+        "source_full": "IMF World Economic Outlook Database, 2024 (현재 달러 기준)",
+        "source_url": "https://www.imf.org/en/Publications/WEO",
+    },
+    {
+        "label": "인구",
+        "value": "2억 8,100만 명",
+        "sub": "2024 · BPS Indonesia",
+        "source_full": "Badan Pusat Statistik (BPS) Indonesia, 2024",
+        "source_url": "https://www.bps.go.id",
+    },
+    {
+        "label": "의약품 시장 규모",
+        "value": "USD 87억",
+        "sub": "2024E · IQVIA / GlobalData",
+        "source_full": "IQVIA Indonesia Pharma Market Report 2024; GlobalData Pharmaceutical Market Forecast Indonesia 2024",
+        "source_url": "https://www.iqvia.com",
+    },
+    {
+        "label": "의약품 수입 의존도",
+        "value": "약 90%",
+        "sub": "원료의약품(API) 기준 · Kemenkes RI",
+        "source_full": "Kementerian Kesehatan Republik Indonesia — Rencana Induk Pengembangan Bahan Baku Obat 2020-2024; BPOM RI 국내 제약산업 현황 보고서 2023",
+        "source_url": "https://www.kemkes.go.id",
+    },
 ]
 
 _cache: list[dict] | None = None
 
 
 def get_id_macro() -> list[dict[str, Any]]:
-    """인도네시아 거시지표 반환. 정적 폴백 기반."""
+    """인도네시아 거시지표 반환. 정적 폴백 기반.
+
+    각 항목:
+        label       — 지표명
+        value       — 표시값
+        sub         — 간략 출처 (카드 하단)
+        source_full — 전체 출처 문장
+        source_url  — 출처 링크
+    """
     global _cache
     if _cache is not None:
         return _cache

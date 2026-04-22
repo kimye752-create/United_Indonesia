@@ -177,6 +177,12 @@ async def search_halodoc(
                 "error":        str(exc)[:120],
             })
 
+    if not results:
+        results.append({
+            "product_name": "", "brand": "", "price_idr": 0,
+            "source": "Halodoc", "keyword": keyword,
+            "error": "검색 결과 없음 — Halodoc SPA 앱 인증 필요 (모바일 앱 API)",
+        })
     return results
 
 
