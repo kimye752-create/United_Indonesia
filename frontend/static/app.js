@@ -213,13 +213,13 @@ function toggleProcess(id) {
 
 async function loadMacro() {
   const FALLBACK = [
-    { label: '1인당 GDP',         value: '$4,941',        sub: '2024 · IMF',
+    { label: '1인당 GDP',           value: 'US$ 4,941',       sub: 'IMF',
       source_full: 'IMF World Economic Outlook Database, 2024', source_url: 'https://www.imf.org/en/Publications/WEO' },
-    { label: '인구',              value: '2억 8,100만 명', sub: '2024 · BPS Indonesia',
+    { label: '인구',                value: '281,000,000명',    sub: 'BPS',
       source_full: 'Badan Pusat Statistik (BPS) Indonesia, 2024', source_url: 'https://www.bps.go.id' },
-    { label: '의약품 시장 규모',    value: 'USD 87억',      sub: '2024E · IQVIA / GlobalData',
+    { label: '의약품 시장 규모',       value: '$8.7B',            sub: 'IQVIA',
       source_full: 'IQVIA Indonesia Pharma Market Report 2024; GlobalData Pharmaceutical Market Forecast Indonesia 2024', source_url: 'https://www.iqvia.com' },
-    { label: '의약품 수입 의존도',  value: '약 90%',         sub: '원료의약품(API) 기준 · Kemenkes RI',
+    { label: '의약품 국가 수입 의존도', value: '~90%',            sub: 'Kemenkes',
       source_full: 'Kementerian Kesehatan RI — Rencana Induk Pengembangan Bahan Baku Obat 2020-2024; BPOM RI 국내 제약산업 현황 보고서 2023', source_url: 'https://www.kemkes.go.id' },
   ];
   const IDS = [

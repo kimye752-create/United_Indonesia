@@ -317,11 +317,7 @@ a.news-card:hover {
   cursor: pointer;
 }
 .news-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 5px;
+  display: none; /* SG 팀장 디자인 통일: 카테고리/날짜/출처 메타 숨김 */
 }
 .news-cat {
   display: inline-block;
