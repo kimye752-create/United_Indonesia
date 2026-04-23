@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>인도네시아 의약품 시장 분석 — Indonesia Pharma Export AI</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="/static/style.css?v=18"/>
+  <link rel="stylesheet" href="/static/style.css?v=19"/>
 </head>
 <body>
 <div class="app">
@@ -98,7 +98,6 @@
                 <span class="process-num">01</span>
                 <div>
                   <div class="process-title">수출가격 전략</div>
-                  <div class="process-sub">제품 분석 · Claude AI · PDF 보고서 자동 생성</div>
                 </div>
               </div>
             </div>
@@ -126,13 +125,9 @@
                   <span style="font-size:12px;color:var(--muted);">시장조사 분석 중…</span>
                 </div>
                 <div class="p1-result-note" id="p1-result-note" style="display:none;"></div>
-                <div id="p1-docx-row" style="display:none;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-                  <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">
-                    📄 시장조사 보고서 DOCX
-                  </button>
-                  <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')" style="background:var(--accent,#e74c3c);">
-                    📑 시장조사 보고서 PDF (₩KRW)
-                  </button>
+                <div id="p1-docx-row" style="display:none !important;">
+                  <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">📄</button>
+                  <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')">📑</button>
                 </div>
                 <div style="margin-top:8px;">
                   <button class="btn-toggle-custom" onclick="toggleCustomForm(this)" type="button">▸ 신약 직접 분석</button>
@@ -170,16 +165,8 @@
                     <span id="p2-ai-run-icon">▶</span> AI 가격 산출
                   </button>
                 </div>
-                <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:5px;font-size:11px;color:var(--muted);">AI가 공공(e-Katalog·BPJS)·민간(병원·약국·체인) 두 채널 각 3개 시나리오를 동시에 산출합니다.</div>
-                <!-- 공공/민간 주의사항 -->
-                <div class="p2-warning-pubpriv">
-                  ⚠ <strong>공공·민간 채널 가격 비교 시 주의</strong> — 인도네시아에서는
-                  <span class="tt" data-tip="e-Katalog(LKPP) 입찰 조달가&#10;공공병원·BPJS 급여 채널 적용">공공 조달가</span>가
-                  <span class="tt" data-tip="Halodoc·K24Klik·민간병원 등&#10;소매·도매 유통 채널 적용">민간 채널가</span>보다
-                  높게 산정되는 경우가 있습니다.
-                  이는 <span class="tt" data-tip="Jaminan Kesehatan Nasional&#10;인도네시아 국민건강보험 (BPJS 운영)">JKN</span> 급여 목록
-                  등재 여부 및 정부 조달 마진 구조 차이에 기인합니다.
-                </div>
+                <div id="p2-ai-seg-desc" style="display:none !important;"></div>
+                <div class="p2-warning-pubpriv" style="display:none !important;"></div>
                 <div id="p2-loading-state" class="p1-simple-loading" style="display:none;">
                   <span class="report-loading-spinner"></span>
                   <span id="p2-loading-label" style="font-size:12px;color:var(--muted);">가격 분석 중…</span>
@@ -260,24 +247,13 @@
                   </div>
                 </div>
 
-                <!-- 가격 면책 문구 -->
-                <div class="p2-disclaimer">
-                  <strong>※ 참고 가격 안내</strong> —
-                  FOB 기준 AI 분석 참고값입니다.
-                  실제 입찰·계약 가격과 상이할 수 있으며, BPOM 등록 상태, FORNAS 등재 여부, 현지 파트너 조건에 따라 변동됩니다.
-                  카드를 클릭하면 FOB 역산 요소를 직접 편집할 수 있습니다.
-                </div>
-
-                <div style="margin-top:10px;">
+                <div class="p2-disclaimer" style="display:none !important;"></div>
+                <div style="display:none !important;">
                   <div id="p2-product-list"></div>
-                  <div id="p2-report-dl-state" style="margin-top:12px;"></div>
-                  <div id="p2-docx-row" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn-docx-dl" id="btn-p2-docx" onclick="downloadDocxReport('p2')">
-                      📄 가격전략 보고서 DOCX
-                    </button>
-                    <button class="btn-docx-dl" id="btn-p2-pdf" onclick="downloadPdfReport('p2')" style="background:var(--accent,#e74c3c);">
-                      📑 가격전략 보고서 PDF (₩KRW)
-                    </button>
+                  <div id="p2-report-dl-state"></div>
+                  <div id="p2-docx-row">
+                    <button class="btn-docx-dl" id="btn-p2-docx" onclick="downloadDocxReport('p2')">📄</button>
+                    <button class="btn-docx-dl" id="btn-p2-pdf" onclick="downloadPdfReport('p2')">📑</button>
                   </div>
                 </div>
               </div><!-- /p2-ai-result-section -->
@@ -460,7 +436,7 @@
                   <div class="process-title">바이어 발굴</div>
                 </div>
               </div>
-              <button class="btn-final-dl" id="btn-final-report" onclick="downloadBuyerReport()" disabled style="display:none;">
+              <button class="btn-final-dl" id="btn-final-report" onclick="downloadBuyerReport()" disabled>
                 ↓ 최종 보고서 다운로드
               </button>
             </div>
@@ -511,32 +487,17 @@
               <div id="p3-result-section" style="display:none;">
                 <div class="p3-top-header">Top 10</div>
                 <div id="p3-cards" class="p3-top-list"></div>
-                <div style="margin-top:14px;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;">
-                  <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>
-                    📄 바이어 보고서 다운로드 (PDF)
-                  </button>
-                  <button class="btn-docx-dl" id="btn-p3-docx" onclick="downloadDocxReport('p3')">
-                    📄 바이어 보고서 DOCX
-                  </button>
-                  <button class="btn-docx-dl" id="btn-p3-pdf" onclick="downloadPdfReport('p3')" style="background:var(--accent,#e74c3c);">
-                    📑 바이어 보고서 PDF (₩KRW)
-                  </button>
+                <div style="display:none !important;">
+                  <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>📄</button>
+                  <button class="btn-docx-dl" id="btn-p3-docx" onclick="downloadDocxReport('p3')">📄</button>
+                  <button class="btn-docx-dl" id="btn-p3-pdf" onclick="downloadPdfReport('p3')">📑</button>
                 </div>
               </div>
 
-              <!-- 최종 통합 보고서 -->
-              <div id="final-report-row" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
-                <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
-                  ※ 최종 보고서: 가격전략 + 바이어 + 시장조사 통합본
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <button class="btn-docx-final" id="btn-final-docx" onclick="downloadDocxReport('final')">
-                    📋 최종 통합 보고서 DOCX 생성
-                  </button>
-                  <button class="btn-docx-final" id="btn-final-pdf" onclick="downloadPdfReport('final')" style="background:var(--accent,#e74c3c);">
-                    📑 최종 통합 보고서 PDF (₩KRW)
-                  </button>
-                </div>
+              <!-- 최종 통합 보고서 (팀장 SG 양식 통일: 우상단 '최종 보고서 다운로드' 버튼으로 일원화) -->
+              <div id="final-report-row" style="display:none !important;">
+                <button class="btn-docx-final" id="btn-final-docx" onclick="downloadDocxReport('final')">📋</button>
+                <button class="btn-docx-final" id="btn-final-pdf" onclick="downloadPdfReport('final')">📑</button>
               </div>
 
             </div><!-- /process-body -->
