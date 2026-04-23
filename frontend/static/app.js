@@ -958,16 +958,17 @@ function _renderP2AiResult(data) {
       const col       = COLS[i];
       if (!col) return;
       const priceIdr  = Number(sc.price_idr  || 0);
-      const fobIdr    = Number(sc.fob_result_idr || 0);
-      const priceUsd  = usd_idr > 0 ? (priceIdr / usd_idr).toFixed(2) : '—';
+      const priceUsd  = usd_idr > 0 && priceIdr > 0 ? (priceIdr / usd_idr) : 0;
+      const priceKrw  = idr_krw > 0 && priceIdr > 0 ? (priceIdr * idr_krw) : 0;
 
       const priceEl = document.getElementById(`p2c-price-${mkt}-${col}`);
       const subEl   = document.getElementById(`p2c-sub-${mkt}-${col}`);
-      const fobEl   = document.getElementById(`p2c-fob-${mkt}-${col}`);
+      const sub2El  = document.getElementById(`p2c-sub2-${mkt}-${col}`);
 
-      if (priceEl) priceEl.textContent = priceIdr > 0 ? Math.round(priceIdr).toLocaleString('ko-KR') : '—';
-      if (subEl)   subEl.textContent   = priceUsd !== '—' ? `$${priceUsd} USD` : '—';
-      if (fobEl)   fobEl.textContent   = fobIdr > 0 ? `$${(fobIdr / usd_idr).toFixed(2)}` : '—';
+      // SG 팀장 디자인: USD 주숫자, IDR/KRW 서브
+      if (priceEl) priceEl.textContent = priceUsd > 0 ? priceUsd.toFixed(2) : '—';
+      if (subEl)   subEl.textContent   = priceIdr > 0 ? `${Math.round(priceIdr).toLocaleString('ko-KR')} IDR` : '— IDR';
+      if (sub2El)  sub2El.textContent  = priceKrw > 0 ? `${Math.round(priceKrw).toLocaleString('ko-KR')} KRW` : '— KRW';
 
       // 레거시 호환 (단일 시장 변수)
       if (mkt === 'public') {

@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/static/images/favicon.png"/>
   <link rel="shortcut icon" type="image/png" href="/static/images/favicon.png"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="/static/style.css?v=24"/>
+  <link rel="stylesheet" href="/static/style.css?v=25"/>
 </head>
 <body>
 <div class="app">
@@ -190,26 +190,26 @@
                     <div class="p2-col p2-col--agg" onclick="openFobModal('public','agg')">
                       <div class="p2-col-label">저가 진입</div>
                       <div class="p2-col-price" id="p2c-price-public-agg">—</div>
-                      <div class="p2-col-currency">IDR</div>
-                      <div class="p2-col-sub" id="p2c-sub-public-agg">— USD</div>
-                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-agg">—</span></div>
-                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                      <div class="p2-col-currency">USD</div>
+                      <div class="p2-col-sub" id="p2c-sub-public-agg">— IDR</div>
+                      <div class="p2-col-sub2" id="p2c-sub2-public-agg">— KRW</div>
+                      <div class="p2-col-edit-hint">클릭하여 편집</div>
                     </div>
                     <div class="p2-col p2-col--avg" onclick="openFobModal('public','avg')">
-                      <div class="p2-col-label">기준</div>
+                      <div class="p2-col-label">기준가</div>
                       <div class="p2-col-price" id="p2c-price-public-avg">—</div>
-                      <div class="p2-col-currency">IDR</div>
-                      <div class="p2-col-sub" id="p2c-sub-public-avg">— USD</div>
-                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-avg">—</span></div>
-                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                      <div class="p2-col-currency">USD</div>
+                      <div class="p2-col-sub" id="p2c-sub-public-avg">— IDR</div>
+                      <div class="p2-col-sub2" id="p2c-sub2-public-avg">— KRW</div>
+                      <div class="p2-col-edit-hint">클릭하여 편집</div>
                     </div>
                     <div class="p2-col p2-col--cons" onclick="openFobModal('public','cons')">
                       <div class="p2-col-label">프리미엄</div>
                       <div class="p2-col-price" id="p2c-price-public-cons">—</div>
-                      <div class="p2-col-currency">IDR</div>
-                      <div class="p2-col-sub" id="p2c-sub-public-cons">— USD</div>
-                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-cons">—</span></div>
-                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                      <div class="p2-col-currency">USD</div>
+                      <div class="p2-col-sub" id="p2c-sub-public-cons">— IDR</div>
+                      <div class="p2-col-sub2" id="p2c-sub2-public-cons">— KRW</div>
+                      <div class="p2-col-edit-hint">클릭하여 편집</div>
                     </div>
                   </div>
                 </div>
@@ -225,26 +225,26 @@
                     <div class="p2-col p2-col--agg" onclick="openFobModal('private','agg')">
                       <div class="p2-col-label">저가 진입</div>
                       <div class="p2-col-price" id="p2c-price-private-agg">—</div>
-                      <div class="p2-col-currency">IDR</div>
-                      <div class="p2-col-sub" id="p2c-sub-private-agg">— USD</div>
-                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-agg">—</span></div>
-                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                      <div class="p2-col-currency">USD</div>
+                      <div class="p2-col-sub" id="p2c-sub-private-agg">— IDR</div>
+                      <div class="p2-col-sub2" id="p2c-sub2-private-agg">— KRW</div>
+                      <div class="p2-col-edit-hint">클릭하여 편집</div>
                     </div>
                     <div class="p2-col p2-col--avg" onclick="openFobModal('private','avg')">
-                      <div class="p2-col-label">기준</div>
+                      <div class="p2-col-label">기준가</div>
                       <div class="p2-col-price" id="p2c-price-private-avg">—</div>
-                      <div class="p2-col-currency">IDR</div>
-                      <div class="p2-col-sub" id="p2c-sub-private-avg">— USD</div>
-                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-avg">—</span></div>
-                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                      <div class="p2-col-currency">USD</div>
+                      <div class="p2-col-sub" id="p2c-sub-private-avg">— IDR</div>
+                      <div class="p2-col-sub2" id="p2c-sub2-private-avg">— KRW</div>
+                      <div class="p2-col-edit-hint">클릭하여 편집</div>
                     </div>
                     <div class="p2-col p2-col--cons" onclick="openFobModal('private','cons')">
                       <div class="p2-col-label">프리미엄</div>
                       <div class="p2-col-price" id="p2c-price-private-cons">—</div>
-                      <div class="p2-col-currency">IDR</div>
-                      <div class="p2-col-sub" id="p2c-sub-private-cons">— USD</div>
-                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-cons">—</span></div>
-                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                      <div class="p2-col-currency">USD</div>
+                      <div class="p2-col-sub" id="p2c-sub-private-cons">— IDR</div>
+                      <div class="p2-col-sub2" id="p2c-sub2-private-cons">— KRW</div>
+                      <div class="p2-col-edit-hint">클릭하여 편집</div>
                     </div>
                   </div>
                 </div>
@@ -594,7 +594,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/app.js?v=21"></script>
+<script src="/static/app.js?v=22"></script>
 <script>
 function toggleCustomForm(el) {
   var body = document.getElementById('custom-form-body');
