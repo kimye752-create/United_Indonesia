@@ -1392,18 +1392,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   font-size: 11px;
   color: var(--muted);
 }
-/* 거시지표 하단 출처 각주 */
-.macro-footnote {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-top: 6px;
-  margin-bottom: 4px;
-  padding: 8px 12px;
-  background: rgba(23,63,120,.03);
-  border-radius: 8px;
-  border: 1px solid rgba(23,63,120,.06);
-}
+/* 거시지표 하단 출처 각주 — SG 팀장 양식 통일: 제거 */
+.macro-footnote { display: none !important; }
 .footnote-row {
   font-size: 10.5px;
   color: var(--muted);
