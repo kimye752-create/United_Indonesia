@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/static/images/favicon.png"/>
   <link rel="shortcut icon" type="image/png" href="/static/images/favicon.png"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="/static/style.css?v=26"/>
+  <link rel="stylesheet" href="/static/style.css?v=27"/>
 </head>
 <body>
 <div class="app">
@@ -131,10 +131,10 @@
                   <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">📄</button>
                   <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')">📑</button>
                 </div>
-                <div style="margin-top:8px;">
+                <div style="display:none !important;">
                   <button class="btn-toggle-custom" onclick="toggleCustomForm(this)" type="button">▸ 신약 직접 분석</button>
                 </div>
-                <div id="custom-form-body" style="display:none;margin-top:10px;">
+                <div id="custom-form-body" style="display:none !important;margin-top:10px;">
                   <div class="custom-form">
                     <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
                     <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
