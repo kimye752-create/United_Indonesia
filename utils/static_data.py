@@ -122,29 +122,119 @@ def _build_from_hsa() -> dict[str, StaticContext]:
     return result
 
 
+def _build_indonesia_contexts() -> dict[str, StaticContext]:
+    """Indonesia 제품(ID_xxx)에 대한 BPOM 기반 정적 컨텍스트 생성.
+
+    Supabase products 테이블에서 country=ID 행을 로드하여 StaticContext 구성.
+    데이터 없으면 기본 Indonesia 컨텍스트로 폴백.
+    """
+    from analysis.id_export_analyzer import _get_product_meta as _get_id_meta
+
+    # Supabase에서 인도네시아 제품 데이터 조회 시도
+    bpom_rows: list[dict] = []
+    try:
+        from utils.db import get_client
+        sb = get_client()
+        bpom_rows = (
+            sb.table("products")
+            .select("product_id,trade_name,registration_number,country_specific,active_ingredient")
+            .eq("country", "ID")
+            .execute()
+            .data or []
+        )
+    except Exception:
+        bpom_rows = []
+
+    result: dict[str, StaticContext] = {}
+    for meta in _get_id_meta():
+        pid  = meta["product_id"]
+        inn  = meta.get("inn", "")
+        # 성분 키워드로 BPOM 등재 경쟁품 검색
+        kws  = [kw.strip().split()[0].lower() for kw in inn.split("+")]
+        matches = [
+            r for r in bpom_rows
+            if any(kw in (r.get("active_ingredient") or "").lower() for kw in kws if len(kw) > 3)
+        ][:10]
+
+        bpom_dicts = [
+            {
+                "licence_no":    m.get("registration_number", ""),
+                "product_name":  m.get("trade_name", ""),
+                "product_type":  (m.get("country_specific") or {}).get("product_type", ""),
+                "ml_md":         (m.get("country_specific") or {}).get("ml_md", ""),
+                "active_ingredients": m.get("active_ingredient", ""),
+            }
+            for m in matches
+        ]
+
+        reg_summary = (
+            f"BPOM 등재 경쟁품 {len(bpom_dicts)}건 확인 (ML/MD 코드 기준)."
+            if bpom_dicts
+            else "BPOM 등재 기록 없음 — 신규 ML 코드 등록 신청 필요"
+        )
+
+        result[pid] = StaticContext(
+            product_id=pid,
+            hsa_matches=bpom_dicts,   # 필드 재활용 (BPOM 매칭 결과)
+            hsa_registered=len(bpom_dicts) > 0,
+            competitor_count=len(bpom_dicts),
+            prescription_only=True,   # 인도네시아 처방의약품 기본값
+            regulatory_summary=reg_summary,
+        )
+    return result
+
+
+_ID_CONTEXT_CACHE: dict[str, StaticContext] | None = None
+
+
 def get_product_context(product_id: str, force_rebuild: bool = False) -> StaticContext | None:
-    global _CONTEXT_CACHE
+    global _CONTEXT_CACHE, _ID_CONTEXT_CACHE
+
+    # Indonesia 제품 (ID_xxx)
+    if product_id.startswith("ID_"):
+        if _ID_CONTEXT_CACHE is None or force_rebuild:
+            _ID_CONTEXT_CACHE = _build_indonesia_contexts()
+        return _ID_CONTEXT_CACHE.get(product_id)
+
+    # Singapore 제품 (SG_xxx, 기본)
     if _CONTEXT_CACHE is None or force_rebuild:
         _CONTEXT_CACHE = _load_all_contexts()
     return _CONTEXT_CACHE.get(product_id)
 
 
 def context_to_prompt_text(ctx: StaticContext) -> str:
-    lines = [
-        f"=== 시장 조사 데이터: {ctx.product_id} ===",
-        f"HSA 등재 여부: {'등재 경쟁품 있음' if ctx.hsa_registered else '등재 기록 없음 — 신규 등록 필요'}",
-        f"경쟁품 수: {ctx.competitor_count}건",
-        f"처방 분류: {'Rx (처방전 필요)' if ctx.prescription_only else 'OTC 가능'}",
-        f"규제 요약: {ctx.regulatory_summary}",
-    ]
+    is_id = ctx.product_id.startswith("ID_")
 
-    if ctx.hsa_matches:
-        lines.append("\n[HSA 등재 경쟁품 상위 3건]")
-        for m in ctx.hsa_matches[:3]:
-            lines.append(
-                f"  - {m.get('product_name', '')} "
-                f"({m.get('licence_no', '')}, {m.get('forensic_classification', '')})"
-            )
+    if is_id:
+        lines = [
+            f"=== 인도네시아 시장 조사 데이터: {ctx.product_id} ===",
+            f"BPOM 등재 여부: {'경쟁품 있음' if ctx.hsa_registered else '등재 기록 없음 — 신규 ML 코드 등록 필요'}",
+            f"경쟁품 수: {ctx.competitor_count}건",
+            f"처방 분류: {'Rx (처방전의약품)' if ctx.prescription_only else 'OTC 가능'}",
+            f"규제 요약: {ctx.regulatory_summary}",
+        ]
+        if ctx.hsa_matches:
+            lines.append("\n[BPOM 등재 경쟁품 상위 3건]")
+            for m in ctx.hsa_matches[:3]:
+                lines.append(
+                    f"  - {m.get('product_name', '')} "
+                    f"({m.get('licence_no', '')}, {m.get('ml_md', '')})"
+                )
+    else:
+        lines = [
+            f"=== 시장 조사 데이터: {ctx.product_id} ===",
+            f"HSA 등재 여부: {'등재 경쟁품 있음' if ctx.hsa_registered else '등재 기록 없음 — 신규 등록 필요'}",
+            f"경쟁품 수: {ctx.competitor_count}건",
+            f"처방 분류: {'Rx (처방전 필요)' if ctx.prescription_only else 'OTC 가능'}",
+            f"규제 요약: {ctx.regulatory_summary}",
+        ]
+        if ctx.hsa_matches:
+            lines.append("\n[HSA 등재 경쟁품 상위 3건]")
+            for m in ctx.hsa_matches[:3]:
+                lines.append(
+                    f"  - {m.get('product_name', '')} "
+                    f"({m.get('licence_no', '')}, {m.get('forensic_classification', '')})"
+                )
 
     if ctx.brochure_snippets:
         lines.append("\n[제품 브로슈어 임상 근거]")

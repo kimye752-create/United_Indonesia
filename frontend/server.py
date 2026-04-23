@@ -855,6 +855,17 @@ async def generate_docx_report(
                   (p2_extracted.get("product_name", "") if p2_extracted else ""))
     today_str  = datetime.now(_tz_dx.utc).strftime("%Y년 %m월 %d일")
 
+    # hs_code: p1_result 또는 _PRODUCT_META에서 가져오기
+    _hs_code = ""
+    if p1_result:
+        _hs_code = p1_result.get("hs_code", "")
+    if not _hs_code and product_key:
+        from analysis.id_export_analyzer import _get_product_meta as _get_pm
+        for _pm in _get_pm():
+            if _pm.get("product_id") == product_key:
+                _hs_code = _pm.get("hs_code", "")
+                break
+
     data_json: dict[str, Any] = {
         "meta": {
             "country":      "인도네시아",
@@ -863,6 +874,7 @@ async def generate_docx_report(
             "product_name": prod_label,
             "inn":          inn_label,
             "product_key":  product_key,
+            "hs_code":      _hs_code,
         },
     }
 
@@ -901,6 +913,7 @@ async def generate_docx_report(
             "inn":                  p1_result.get("inn", inn_label),
             "dosage_form":          p1_result.get("dosage_form", ""),
             "therapeutic_area":     p1_result.get("therapeutic_area", ""),
+            "hs_code":              p1_result.get("hs_code", _hs_code),
             "verdict":              p1_result.get("verdict", "미상"),
             "verdict_label":        {"적합": "수출 적합", "조건부": "조건부 적합", "부적합": "수출 부적합"}.get(
                                         p1_result.get("verdict", ""), p1_result.get("verdict", "미분석")),

@@ -225,10 +225,14 @@ function buildP2(p2, meta) {
 
   const elems = [];
 
+  const p2HsCode = safe(extracted.hs_code || meta.hs_code, '');
+
   // 표제
   elems.push(h1(`인도네시아 수출 가격 전략 보고서 — ${product}`, { pageBreak: true }));
   elems.push(p([
-    run(`${product}${inn ? ' (' + inn + ')' : ''}  |  ${date}`, { size: 20, color: MUTED }),
+    run(`${product}${inn ? ' (' + inn + ')' : ''}`, { size: 20, color: DARK }),
+    ...(p2HsCode ? [run(`  |  HS CODE: ${p2HsCode}`, { size: 20, color: MUTED })] : []),
+    run(`  |  Indonesia  |  ${date}`, { size: 20, color: MUTED }),
   ], { before: 0, after: 180 }));
 
   // 1. 거시 시장 요약
@@ -264,22 +268,27 @@ function buildP2(p2, meta) {
   elems.push(h2('3. 거래처 참고 가격'));
   const competitors = Array.isArray(extracted.competitor_prices) ? extracted.competitor_prices : [];
   if (competitors.length > 0) {
+    // SG 템플릿 기준: 업체명 / 제품명 / 성분·함량 / 시장가
     const rows = [
-      tr([thc('업체명', { width: 2000 }), thc('제품명 / 성분', { width: 4000 }),
-          thc('시장가', { width: 2000 }), thc('출처', { width: 1638 })], { header: true }),
+      tr([thc('업체명', { width: 2000 }), thc('제품명', { width: 2400 }),
+          thc('성분·함량', { width: 2400 }), thc('시장가', { width: 2838 })], { header: true }),
     ];
     for (const c of competitors) {
       const priceIdr = Number(c.price_sgd || c.price_idr) || 0;
+      const priceKrw = priceIdr > 0 && idr_krw > 0 ? `  /  ₩${Math.round(priceIdr * idr_krw).toLocaleString('ko-KR')}` : '';
+      const priceStr = priceIdr > 0
+        ? `IDR ${priceIdr.toLocaleString('ko-KR')}${priceKrw}`
+        : safe(c.price_text || c.market_price, '—');
       rows.push(tr([
         tc(safe(c.name, c.company || '—'), { width: 2000 }),
-        tc(safe(c.product || c.inn, '—'), { width: 4000 }),
-        tc(priceIdr > 0 ? `IDR ${priceIdr.toLocaleString('ko-KR')}` : safe(c.price_text, '—'), { width: 2000 }),
-        tc(safe(c.source, 'Perplexity'), { width: 1638, size: 18 }),
+        tc(safe(c.product || c.product_name, '—'), { width: 2400 }),
+        tc(safe(c.inn || c.ingredient || c.strength, '—'), { width: 2400 }),
+        tc(priceStr, { width: 2838, size: 19 }),
       ]));
     }
-    elems.push(tbl(rows, [2000, 4000, 2000, 1638]));
+    elems.push(tbl(rows, [2000, 2400, 2400, 2838]));
   } else {
-    elems.push(note('경쟁사 참고가 데이터가 없습니다. 보고서 PDF에서 경쟁가를 추출합니다.'));
+    elems.push(note('경쟁사 참고가 데이터가 없습니다. P2 AI 분석을 통해 가격 정보를 확인하십시오.'));
   }
 
   // 4. 가격 시나리오
@@ -358,12 +367,17 @@ function buildP2(p2, meta) {
     return elems2;
   }
 
-  if (analysis.public) {
-    elems.push(...buildMarketSection(analysis.public, '▶ 4-1. 공공 시장  (e-Katalog · BPJS-Kesehatan)'));
-    elems.push(p('', { before: 0, after: 120 }));
-  }
-  if (analysis.private) {
-    elems.push(...buildMarketSection(analysis.private, '▶ 4-2. 민간 시장  (병원 · 약국 · 체인 채널)'));
+  // scenarios 배열 기반 단일 구조 또는 public/private 분리 구조 모두 지원
+  if (analysis.public || analysis.private) {
+    if (analysis.public) {
+      elems.push(...buildMarketSection(analysis.public, '▸ 4-1. 공공 시장  (e-Katalog · BPJS-Kesehatan)'));
+      elems.push(p('', { before: 0, after: 120 }));
+    }
+    if (analysis.private) {
+      elems.push(...buildMarketSection(analysis.private, '▸ 4-2. 민간 시장  (병원 · 약국 · 체인 채널)'));
+    }
+  } else if (Array.isArray(analysis.scenarios) && analysis.scenarios.length > 0) {
+    elems.push(...buildMarketSection(analysis, '▸ 4-1. 공공 시장  (e-Katalog · BPJS-Kesehatan)'));
   }
 
   // 5. 면책 문구
@@ -388,10 +402,11 @@ function buildP3(p3, meta) {
   // 표제
   elems.push(h1(`인도네시아 바이어 후보 리스트 — ${product}`, { pageBreak: true }));
   elems.push(p([
-    run(`${product}${inn ? ' (' + inn + ')' : ''}  |  ${date}`, { size: 20, color: MUTED }),
+    run(`${product}${inn ? ' (' + inn + ')' : ''}`, { size: 20, color: DARK }),
+    run(`  |  Indonesia  |  ${date}`, { size: 20, color: MUTED }),
   ], { before: 0, after: 120 }));
   elems.push(note('※ 아래 바이어 후보는 CPHI 전시회 등록 및 Perplexity 웹 분석을 통해 도출되었으며, ' +
-    '개별 기업의 인도네시아 진출 현황 및 제품 연관성은 추가 실사가 필요합니다.'));
+    '개별 기업의 인도네시아 진출 현황 및 제품 연관성은 추가 실사(Due Diligence)가 필요합니다.'));
 
   // 바이어 이름 헬퍼 (buyer_enricher가 name 또는 company_name 사용)
   function bName(b) { return safe(b.company_name || b.name); }
@@ -409,55 +424,57 @@ function buildP3(p3, meta) {
     return '-';
   }
 
-  // 1. 후보 리스트 요약
-  elems.push(h2('1. 인도네시아 현지 바이어 후보 리스트'));
+  // 1. 후보 리스트 요약 (전체 N개사)
+  const totalCount = buyers.length;
+  elems.push(h2(`1. 바이어 후보 리스트 (전체 ${totalCount}개사)`));
   if (buyers.length === 0) {
     elems.push(note('바이어 발굴 결과가 없습니다.'));
   } else {
-    const listRows = [
-      tr([thc('순위', { width: 600 }), thc('기업명', { width: 3200 }),
-          thc('국가', { width: 1200 }), thc('분류', { width: 1500 }), thc('이메일', { width: 3138 })], { header: true }),
-    ];
     for (let i = 0; i < buyers.length; i++) {
       const b = buyers[i];
-      listRows.push(tr([
-        tc(String(i + 1),   { width: 600 }),
-        tc(bName(b),        { width: 3200, bold: true }),
-        tc(bCountry(b),     { width: 1200 }),
-        tc(bCategory(b),    { width: 1500 }),
-        tc(bEmail(b),       { width: 3138, size: 18 }),
-      ]));
+      const nm  = bName(b);
+      const ctr = bCountry(b);
+      const cat = bCategory(b);
+      const em  = bEmail(b);
+      elems.push(p([
+        run(`${i + 1}.  `, { bold: true, size: 20 }),
+        run(nm, { bold: true, size: 20, color: NAVY }),
+        run(`  |  ${ctr}  |  ${cat}  |  ${em !== '—' ? em : ''}`, { size: 19, color: MUTED }),
+      ], { before: 30, after: 20 }));
     }
-    elems.push(tbl(listRows, [600, 3200, 1200, 1500, 3138]));
   }
 
-  // 2. 우선 접촉 바이어 상세 정보
-  elems.push(h2('2. 우선 접촉 바이어 상세 정보'));
+  // 2. 우선 접촉 바이어 상세 정보 (상위 N개사)
+  const detailCount = Math.min(buyers.length, 3);
+  elems.push(h2(`2. 우선 접촉 바이어 상세 정보 (상위 ${detailCount}개사)`));
   elems.push(note(
-    '※ 아래 기업들은 CPHI 전시회 등록 데이터, Perplexity 실시간 검색, Claude AI 분석을 종합 평가하여 선정되었습니다. ' +
-    '최종 파트너 선정 전 실사(Due Diligence)를 권장합니다.'
+    `※ 하기 ${detailCount}개사는 ${safe(meta.product_name, '해당 품목')}의 성분 연관성, ` +
+    'APAC 지역 네트워크, 인도네시아 진출 가능성을 종합 평가하여 선정하였습니다.'
   ));
 
-  for (let i = 0; i < Math.min(buyers.length, 10); i++) {
+  for (let i = 0; i < detailCount; i++) {
     const b  = buyers[i];
     const e  = enriched(b);
     const nm = bName(b);
 
-    // 기업 헤더
+    // 기업 헤더 (SG 템플릿: "{N}. 기업명  |  국가 · 분류")
     elems.push(new Paragraph({
-      children: [new TextRun({ text: `${i + 1}. ${nm}`, font: F, size: 24, bold: true, color: NAVY }),
-                 new TextRun({ text: `  |  ${bCategory(b)}  ${bCountry(b) ? '· ' + bCountry(b) : ''}`, font: F, size: 20, color: MUTED })],
+      children: [new TextRun({ text: `${i + 1}. ${nm}`, font: F, size: 26, bold: true, color: NAVY }),
+                 new TextRun({ text: `  |  ${bCountry(b)}  ·  ${bCategory(b)}`, font: F, size: 20, color: MUTED })],
       spacing: { before: i === 0 ? 180 : 400, after: 100 },
       border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: NAVY, space: 2 } },
     }));
 
-    // 기업 개요
+    // ▸ 기업 개요 (SG 템플릿 스타일)
     const overview = safe(e.company_overview_kr || b.company_overview_kr, null);
+    elems.push(p([run('▸ 기업 개요', { bold: true, size: 20, color: NAVY })], { before: 100, after: 30 }));
     if (overview && overview !== '—') {
-      elems.push(tbl([
-        tr([thc('기업 개요', { width: 1400 }), tc(overview, { width: 8238 })]),
-      ], [1400, 8238]));
+      elems.push(body(overview, { before: 0, after: 60 }));
+    } else {
+      elems.push(body('기업 개요 정보를 수집 중입니다. Perplexity 실시간 검색 후 업데이트됩니다.', { before: 0, after: 60 }));
     }
+
+    elems.push(p([run('▸ 추천 이유', { bold: true, size: 20, color: NAVY })], { before: 60, after: 30 }));
 
     // 추천 이유 (① ~ ⑤)
     const reason = safe(e.recommendation_reason || b.recommendation_reason, null);
@@ -506,9 +523,10 @@ function buildP3(p3, meta) {
       ], [1400, 8238]));
     }
 
-    // 출처
+    // 출처 (SG 템플릿: ※ 출처: Perplexity 분석)
     const srcUrls = (e.source_urls || b.source_urls || []).slice(0, 3);
     elems.push(note(`※ 출처: CPHI 전시회 등록 DB, Perplexity 실시간 검색${srcUrls.length > 0 ? '  |  ' + srcUrls[0] : ''}`));
+    elems.push(p('', { before: 0, after: 40 }));
   }
 
   return elems;
@@ -524,11 +542,14 @@ function buildP1(p1, meta) {
   const verdict = safe(p1.verdict_label || p1.verdict, '');
   const elems   = [];
 
+  const hsCode = safe(p1.hs_code || meta.hs_code, '');
+
   // 표제
   elems.push(h1(`인도네시아 시장보고서 — ${product}`, { pageBreak: true }));
   elems.push(p([
     run(`${product}${inn ? ' (' + inn + ')' : ''}`, { size: 22, bold: true }),
-    run(`  |  ${date}`, { size: 20, color: MUTED }),
+    ...(hsCode ? [run(`  |  HS CODE: ${hsCode}`, { size: 20, color: MUTED })] : []),
+    run(`  |  Indonesia  |  ${date}`, { size: 20, color: MUTED }),
     ...(verdict ? [run(`  |  판정: ${verdict}`, { size: 20, bold: true, color: verdict.includes('적합') && !verdict.includes('부') ? GREEN : verdict.includes('조건') ? ORANGE : NAVY })] : []),
   ], { before: 0, after: 180 }));
 
