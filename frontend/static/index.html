@@ -131,10 +131,10 @@
                   <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">📄</button>
                   <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')">📑</button>
                 </div>
-                <div style="display:none !important;">
+                <div style="margin-top:8px;">
                   <button class="btn-toggle-custom" onclick="toggleCustomForm(this)" type="button">▸ 신약 직접 분석</button>
                 </div>
-                <div id="custom-form-body" style="display:none !important;margin-top:10px;">
+                <div id="custom-form-body" style="display:none;margin-top:10px;">
                   <div class="custom-form">
                     <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
                     <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
@@ -594,7 +594,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/app.js?v=24"></script>
+<script src="/static/app.js?v=25"></script>
 <script>
 function toggleCustomForm(el) {
   var body = document.getElementById('custom-form-body');

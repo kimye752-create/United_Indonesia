@@ -2050,13 +2050,14 @@ function _pbsLineFromApi(result) {
   return '참고 가격 정보 없음';
 }
 
-/** 시장조사 완료/오류 노트 표시 */
+/** 시장조사 완료/오류 노트 표시 — SG 팀장 디자인: 배너 숨김 (콘솔에만 로그) */
 function _showP1Note(msg, isErr) {
   const el = document.getElementById('p1-result-note');
   if (!el) return;
-  el.textContent = msg;
-  el.className   = 'p1-result-note' + (isErr ? ' err' : '');
-  el.style.display = '';
+  el.textContent = '';
+  el.className   = 'p1-result-note';
+  el.style.display = 'none';
+  if (isErr) console.warn('[P1]', msg);
 }
 
 function _hideP1Note() {
