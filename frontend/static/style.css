@@ -300,20 +300,19 @@ a.news-item:hover .tit { color: var(--navy2); }
 /* ── 뉴스 카드 (Perplexity 기반) ── */
 .news-card {
   display: block;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: #eaf1f8; /* SG 팀장 톤: 파랑 배경 박스효과 */
-  margin-bottom: 8px;
+  padding: 14px 4px;
+  border-radius: 0;
+  background: #fff; /* SG 팀장 톤: 흰 배경 + 구분선만 */
+  margin-bottom: 0;
   text-decoration: none;
   color: inherit;
-  transition: background .13s, box-shadow .13s;
-  border: 1px solid transparent;
+  transition: background .13s;
+  border: 0;
+  border-bottom: 1px solid rgba(23,63,120,.10);
 }
-.news-card:last-child { margin-bottom: 0; }
+.news-card:last-child { border-bottom: 0; }
 a.news-card:hover {
-  background: #dce7f3;
-  border-color: rgba(23,63,120,.14);
-  box-shadow: 0 2px 8px rgba(23,63,120,.07);
+  background: rgba(23,63,120,.04);
   cursor: pointer;
 }
 .news-card-top {
