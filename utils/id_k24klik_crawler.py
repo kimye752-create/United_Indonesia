@@ -54,6 +54,23 @@ def _parse_price_and_unit(text: str) -> tuple[int | None, str]:
     return price, unit
 
 
+def _is_relevant(name: str, keyword: str) -> bool:
+    """제품명이 키워드와 관련 있는지 확인.
+
+    K24Klik은 검색 결과가 없을 때 인기 제품을 반환하므로,
+    파싱 후 키워드 관련성 필터링이 반드시 필요하다.
+    """
+    name_lc = name.lower()
+    kw_lc   = keyword.lower().strip()
+    # 하이픈 포함 키워드 분리 (예: "omega-3" → ["omega", "3"])
+    kw_parts = [p for p in re.split(r"[\s\-]+", kw_lc) if len(p) >= 3]
+    # 이름에 키워드 전체 또는 주요 부분이 포함되어야 함
+    if kw_lc in name_lc:
+        return True
+    # 알파벳 3자 이상인 부분 중 하나라도 포함되면 관련성 있음
+    return any(part in name_lc for part in kw_parts if re.search(r"[a-z]{3,}", part))
+
+
 def _parse_product_cards(html: str, keyword: str) -> list[dict[str, Any]]:
     """li.product 카드 파싱 (K24Klik /cariObat/ 페이지)."""
     soup    = BeautifulSoup(html, "html.parser")
@@ -95,6 +112,11 @@ def _parse_product_cards(html: str, keyword: str) -> list[dict[str, Any]]:
                 if not detail_url.startswith("http"):
                     detail_url = _BASE_URL + detail_url
 
+        # ── 키워드 관련성 필터 ─────────────────────────────────────────────
+        # K24Klik은 결과 없을 때 인기 제품을 반환하므로 반드시 필터링 필요
+        if not _is_relevant(name, keyword):
+            continue
+
         raw = {
             "product_name": name,
             "price_idr":    price_idr,
@@ -122,6 +144,8 @@ def _parse_suggest_html(html: str, keyword: str) -> list[dict[str, Any]]:
         name_el     = a.find(class_=re.compile(r"name|text", re.I))
         name        = name_el.get_text(strip=True) if name_el else a.get_text(strip=True)
         if not name or len(name) < 3:
+            continue
+        if not _is_relevant(name, keyword):
             continue
         raw = {
             "product_name": name,

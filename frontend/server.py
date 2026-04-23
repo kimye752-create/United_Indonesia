@@ -1235,6 +1235,127 @@ async def generate_p2_report(body: P2ReportBody) -> JSONResponse:
 
 # ── 2공정 AI 파이프라인 (PDF → Haiku 가격 추출 → 계산 → Haiku 분석 → PDF) ────────
 
+# ── P2 시스템 프롬프트 ─────────────────────────────────────────────────────────
+_ID_P2_SYSTEM_PROMPT = (
+    "당신은 한국유나이티드제약(주)의 인도네시아 수출 전략 시니어 애널리스트입니다. "
+    "주어진 품목의 (1) P1 시장조사 보고서 추출 데이터, (2) 실시간 환율, "
+    "(3) 공공·민간 채널 FOB 역산 구조를 종합해 "
+    "'수출가격 전략 보고서'에 들어갈 한국어 보고서체 JSON 블록을 작성합니다.\n\n"
+
+    "【데이터 원칙 — 최우선】\n"
+    "- 입력 추출 데이터(extracted)에 없는 수치·업체명·규제 사실은 절대 창작하지 않습니다.\n"
+    "- 참조가·FOB 역산값·환율은 입력 JSON에 있는 값만 사용합니다.\n"
+    "- 인도네시아는 루피아(IDR)를 공용 통화로 사용합니다. "
+    "모든 현지 가격은 IDR 기준으로 서술하고 USD·KRW 환산은 입력 환율로 계산해 병기합니다.\n"
+    "- 데이터가 없으면 '미확보(e-Katalog/BPOM 현지 추가 조사 필요)'로 명시합니다.\n\n"
+
+    "【인도네시아 특화 약어 — 최초 노출 시 괄호 풀어쓰기】\n"
+    "- BPOM (Badan Pengawas Obat dan Makanan · 인도네시아 식약처)\n"
+    "- JKN (Jaminan Kesehatan Nasional · 국가건강보험), "
+    "BPJS-Kesehatan (JKN 운영 기관)\n"
+    "- FORNAS (Formularium Nasional · 국가처방집): 등재 = JKN 급여 자동 인정\n"
+    "- e-Katalog/LKPP: 공공병원 의약품 조달 플랫폼, HET(최고 소매가) 설정\n"
+    "- PBF (Pedagang Besar Farmasi · 의약품 도매업체): 현지 유통 필수 경유\n"
+    "- PPN (Pajak Pertambahan Nilai · 부가가치세): 의약품 11% 고정\n\n"
+
+    "【FOB 역산 구조 참고】\n"
+    "공공(e-Katalog·BPJS): FOB = 조달가 × (1-관세) × (1-PBF마진) × (1-병원마진) × (1-에이전트) × (1-운임)\n"
+    "민간(약국·병원·Halodoc/K24): FOB = HET ÷ (1+PPN) ÷ (1+소매마진) ÷ (1+유통마진) ÷ (1+관세) × (1-운임)\n\n"
+
+    "【출력 JSON 스키마 — 모든 필드 필수】\n"
+    "{\n"
+    '  "rationale": "이 제품 가격 전략 수립 근거 2~3문장 — 시장가 수준·경쟁 강도 요약",\n'
+    '  "recommendation": "공공/민간/혼합 채널 최적 전략 권고 2~3문장",\n'
+    '  "public_market_strategy": "공공 채널 전략 — FORNAS 등재·e-Katalog 입찰가 포지셔닝·PBF 선정 방향 2~3문장",\n'
+    '  "private_market_strategy": "민간 채널 전략 — 디지털 약국(Halodoc·K24)·민간병원 납품·브랜드 포지셔닝 2~3문장",\n'
+    '  "scenarios": [공공 채널 3개 시나리오 — PDF 생성기 호환용 최상위 복사본],\n'
+    '  "public": {\n'
+    '    "market_note": "공공 조달 특이사항 1문장 (HET 제한·FORNAS 등재 여부 등)",\n'
+    '    "market_strategy": "public_market_strategy와 동일",\n'
+    '    "scenarios": [\n'
+    '      {\n'
+    '        "name": "저가 진입",\n'
+    '        "price_idr": 숫자,\n'
+    '        "fob_result_idr": 숫자,\n'
+    '        "reason": "PBF 마진 언급 포함 포지셔닝 근거 1~2문장",\n'
+    '        "fob_factors": [\n'
+    '          {"name": "수입관세",    "type": "pct_deduct", "value": 숫자, "rationale": "인도네시아 의약품 관세"},\n'
+    '          {"name": "PBF 유통마진","type": "pct_deduct", "value": 숫자, "rationale": "공공 입찰 PBF 마진"},\n'
+    '          {"name": "병원·BPJS마진","type":"pct_deduct","value": 숫자, "rationale": "공공병원 마진"},\n'
+    '          {"name": "에이전트",    "type": "pct_deduct", "value": 숫자, "rationale": "현지 에이전트 수수료"},\n'
+    '          {"name": "운임·보험",   "type": "pct_deduct", "value": 숫자, "rationale": "CIF→FOB 운임 차감"}\n'
+    '        ]\n'
+    '      },\n'
+    '      {"name": "기준",    "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]},\n'
+    '      {"name": "프리미엄","price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}\n'
+    '    ]\n'
+    '  },\n'
+    '  "private": {\n'
+    '    "market_note": "민간 채널 특이사항 1문장 (PPN·Halodoc/K24 특성 등)",\n'
+    '    "market_strategy": "private_market_strategy와 동일",\n'
+    '    "scenarios": [\n'
+    '      {\n'
+    '        "name": "저가 진입",\n'
+    '        "price_idr": 숫자,\n'
+    '        "fob_result_idr": 숫자,\n'
+    '        "reason": "PBF 마진 언급 포함 포지셔닝 근거 1~2문장",\n'
+    '        "fob_factors": [\n'
+    '          {"name": "수입관세",   "type": "pct_deduct", "value": 숫자, "rationale": "인도네시아 의약품 관세"},\n'
+    '          {"name": "유통사마진", "type": "pct_deduct", "value": 숫자, "rationale": "민간 도매 PBF 마진"},\n'
+    '          {"name": "소매마진",   "type": "pct_deduct", "value": 숫자, "rationale": "약국·병원 소매 마진"},\n'
+    '          {"name": "PPN 부가세", "type": "pct_deduct", "value": 11,   "rationale": "인도네시아 부가세 고정 11%"},\n'
+    '          {"name": "에이전트",   "type": "pct_deduct", "value": 숫자, "rationale": "현지 에이전트 수수료"},\n'
+    '          {"name": "운임·보험",  "type": "pct_deduct", "value": 숫자, "rationale": "CIF→FOB 운임 차감"}\n'
+    '        ]\n'
+    '      },\n'
+    '      {"name": "기준",    "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]},\n'
+    '      {"name": "프리미엄","price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}\n'
+    '    ]\n'
+    '  }\n'
+    "}\n\n"
+
+    "【어투 및 품질 규칙 — 절대 준수】\n"
+    "- 한국어 존댓말('-합니다', '-습니다')로 작성합니다.\n"
+    "- 마크다운 금지: **, #, -, 백틱, [링크]() 전부 금지.\n"
+    "- 이모지·특수 기호 장식 금지.\n"
+    "- 각 시나리오 reason 문장에 PBF(유통사) 마진이 FOB 산정에 미친 영향을 1회 이상 포함합니다.\n"
+    "- 추상적 권고 문구 단독 금지 — price_idr·fob_result_idr 수치를 반드시 인용합니다.\n"
+    "- JSON 객체 하나만 출력합니다. {{ 로 시작, }} 로 끝, 코드블록·서두 없이 출력합니다."
+)
+
+
+def _p2_extract_json(raw: str) -> dict:
+    """P2 AI 응답에서 JSON 객체를 강건하게 추출합니다."""
+    import json as _json, re as _re
+
+    # 전략 1: ```json 코드블록
+    m = _re.search(r"```json\s*(\{.*?\})\s*```", raw, _re.S)
+    if m:
+        try:
+            return _json.loads(m.group(1))
+        except Exception:
+            pass
+
+    # 전략 2: 중첩 대응 중괄호 범위
+    start = raw.find("{")
+    if start != -1:
+        depth = 0
+        for i, ch in enumerate(raw[start:], start):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return _json.loads(raw[start: i + 1])
+                    except Exception:
+                        break
+
+    # 전략 3: raw 전체
+    import json as _j
+    return _j.loads(raw.strip())
+
+
 _p2_ai_task: dict[str, Any] = {}
 
 
@@ -1285,20 +1406,33 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {{
   "product_name": "제품명 (없으면 '미상')",
-  "ref_price_sgd": 숫자 또는 null,
-  "ref_price_currency": "SGD 또는 USD",
+  "inn": "성분명·규격 (없으면 빈 문자열)",
+  "dosage_form": "제형 (없으면 빈 문자열)",
+  "pack_size": 숫자 또는 null,
+  "ref_price_idr": 숫자 또는 null,
+  "ref_price_usd": 숫자 또는 null,
   "ref_price_text": "원문 가격 텍스트 (없으면 빈 문자열)",
-  "competitor_prices": [{{"name": "경쟁사명", "price_sgd": 숫자}}],
-  "market_context": "시장 맥락 요약 (1-2문장)",
+  "het_idr": 숫자 또는 null,
+  "ekatalog_price_idr": 숫자 또는 null,
+  "competitor_prices": [
+    {{"name": "경쟁사·제품명", "price_idr": 숫자 또는 null, "price_usd": 숫자 또는 null, "channel": "public|private|unknown"}}
+  ],
+  "market_context": "시장 맥락 요약 (1~2문장, 없으면 빈 문자열)",
   "hs_code": "HS 코드 (없으면 빈 문자열)",
-  "verdict": "수출 적합성 판정 (적합/조건부/부적합/미상)"
+  "verdict": "수출 적합성 판정 (적합/조건부/부적합/미상)",
+  "fornas_registered": true 또는 false 또는 null,
+  "bpom_status": "등록완료|등록필요|심사중|미상"
 }}
 
 가격 추출 규칙 (반드시 준수):
-- '참고 SGD X.XX', 'SGD X.XX 수준', 'DPMQ ... 참고 SGD X.XX' 등 SGD 금액이 포함된 모든 표현에서 숫자를 추출하세요.
-- 'PBS 방법론적 추산', '싱가포르 약가 아님' 같은 면책 문구가 있어도 SGD 숫자는 ref_price_sgd에 넣으세요.
-- 보고서의 '참고 가격', '가격 포지셔닝', 'DPMQ' 섹션을 특히 확인하세요.
-- USD($) 금액만 있다면 ref_price_sgd는 null로, ref_price_currency는 'USD'로, ref_price_text에 원문 그대로 기록하세요."""
+- 'IDR X,XXX', 'Rp X,XXX', 'IDR X.XXX' 형식의 루피아 금액을 ref_price_idr에 넣으세요.
+- 'e-Katalog 조달가', 'LKPP 조달가' 관련 IDR 숫자는 ekatalog_price_idr에 넣으세요.
+- 'HET', '최고 판매가', 'HNA' 관련 IDR 숫자는 het_idr에 넣으세요.
+- 'USD', '$' 금액이 있으면 ref_price_usd에 넣고, ref_price_idr는 null로 유지하세요.
+- 경쟁사 가격의 channel은 'public'(e-Katalog/BPJS) 또는 'private'(약국/병원)으로 구분하세요.
+- FORNAS 등재 여부가 '등재', '포함', 'FORNAS' 키워드와 함께 나오면 fornas_registered를 true로 설정하세요.
+- '미등재', 'FORNAS 없음' 등이 나오면 fornas_registered를 false로 설정하세요.
+- SGD, AUD 등 다른 통화는 ref_price_text에 원문을 기록하고 ref_price_idr와 ref_price_usd는 null로 두세요."""
 
         extract_resp = await asyncio.to_thread(
             lambda: client.messages.create(
@@ -1324,9 +1458,14 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
             }
 
         _p2_ai_task["extracted"] = extracted
+        _ref_disp = (
+            f"IDR {int(extracted['ref_price_idr']):,}" if extracted.get("ref_price_idr")
+            else f"USD {extracted['ref_price_usd']}" if extracted.get("ref_price_usd")
+            else extracted.get("ref_price_text") or "미확인"
+        )
         await _emit({
             "phase": "p2_pipeline",
-            "message": f"가격 추출 완료 — 참조가: SGD {extracted.get('ref_price_sgd', '미확인')}",
+            "message": f"가격 추출 완료 — 참조가: {_ref_disp}",
             "level": "success",
         })
 
@@ -1369,99 +1508,77 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         _p2_ai_task.update({"step": "ai_analysis", "step_label": "AI 공공·민간 분석 중…"})
         await _emit({"phase": "p2_pipeline", "message": "Claude — 공공·민간 이중 시장 분석", "level": "info"})
 
-        ref_price    = extracted.get("ref_price_sgd") or 0
-        ref_display  = f"IDR {float(ref_price):,.0f}" if ref_price else (extracted.get("ref_price_text") or "미확인")
+        # ── 참조가 결정 (IDR 우선, USD·환산 순) ────────────────────────────────
         usd_idr      = exchange_rates["usd_idr"]
         idr_krw      = exchange_rates["idr_krw"]
         verdict_src  = extracted.get("verdict", "미상")
         competitor_json = json.dumps(extracted.get("competitor_prices", []), ensure_ascii=False)
 
+        _ref_idr = extracted.get("ref_price_idr")
+        _ref_usd = extracted.get("ref_price_usd")
+        if _ref_idr:
+            ref_price_idr = int(_ref_idr)
+            ref_display   = f"IDR {ref_price_idr:,} (≈ USD {ref_price_idr / usd_idr:.2f})"
+        elif _ref_usd:
+            ref_price_idr = int(float(_ref_usd) * usd_idr)
+            ref_display   = f"USD {_ref_usd} → 환산 IDR {ref_price_idr:,}"
+        else:
+            ref_price_idr = 0
+            ref_display   = extracted.get("ref_price_text") or "미확인"
+
+        _het_idr     = extracted.get("het_idr")
+        _ek_idr      = extracted.get("ekatalog_price_idr")
+        _fornas_txt  = (
+            "FORNAS 등재" if extracted.get("fornas_registered") is True
+            else "FORNAS 미등재" if extracted.get("fornas_registered") is False
+            else "FORNAS 등재 여부 미확인"
+        )
+        _bpom_txt    = extracted.get("bpom_status", "미상")
+
         analysis_prompt = f"""인도네시아 수출 가격 전략(FOB 역산)을 공공·민간 이중 시장으로 수립해주세요.
 
 ## 추출된 보고서 정보
 - 제품명: {extracted.get('product_name', '미상')}
+- INN·성분: {extracted.get('inn', '미상')}
+- 제형: {extracted.get('dosage_form', '미상')}
 - 수출 적합성 판정: {verdict_src}
 - 참조가: {ref_display}
+- e-Katalog 조달가: {f"IDR {int(_ek_idr):,}" if _ek_idr else "미확인"}
+- HET(최고 판매가): {f"IDR {int(_het_idr):,}" if _het_idr else "미확인"}
+- FORNAS 상태: {_fornas_txt}
+- BPOM 등록: {_bpom_txt}
 - HS 코드: {extracted.get('hs_code', '미상')}
-- 현재 환율: 1 USD = {usd_idr:,.0f} IDR / 1 IDR = {idr_krw:.6f} KRW
+- 현재 환율: 1 USD = {usd_idr:,.0f} IDR / 1 IDR ≈ {idr_krw:.5f} KRW
 - 경쟁사 가격: {competitor_json}
 - 시장 맥락: {extracted.get('market_context', '정보 없음')}
 
-## 인도네시아 FOB 역산 구조
-FOB가 = 현지 유통가 ÷ (1 + 병원마진) ÷ (1 + 유통사마진) ÷ (1 + 수입관세) - 운임·보험
+## 인도네시아 FOB 역산 구조 (참고)
+공공(e-Katalog·BPJS): FOB = 조달가 × (1-관세) × (1-PBF마진) × (1-병원마진) × (1-에이전트) × (1-운임)
+민간(약국·병원·Halodoc/K24): FOB = HET ÷ (1+PPN) ÷ (1+소매마진) ÷ (1+유통마진) ÷ (1+관세) × (1-운임)
 
-**공공 시장 (e-Katalog/BPJS-Kesehatan):**
-- 수입관세(bea masuk): 의약품 5~10%
-- 유통사 마진: 15~22% (공공 입찰 유통 구조)
-- 병원·BPJS 마진: 10~18%
-- 에이전트 수수료: 3~5%
-- 운임·보험: 3~6%
+공공 시장 적정 비율 범위:
+- 수입관세: 의약품 5~10%  · PBF 유통마진: 15~22%  · 병원·BPJS마진: 10~18%
+- 에이전트: 3~5%  · 운임·보험: 3~6%
 
-**민간 시장 (병원·약국·Halodoc/K24):**
-- 수입관세: 5~10%
-- 유통사 마진: 20~28%
-- 소매(약국/병원) 마진: 30~40%
-- PPN 부가세: 11% (고정)
-- 에이전트 수수료: 3~8%
-- 운임·보험: 3~6%
+민간 시장 적정 비율 범위:
+- 수입관세: 5~10%  · PBF 유통마진: 20~28%  · 소매마진: 30~40%
+- PPN: 11%(고정)  · 에이전트: 3~8%  · 운임·보험: 3~6%
 
-## 요청
-제품 특성, 경쟁사 가격, 시장 맥락을 종합해 공공·민간 각각 3개 시나리오(저가진입/기준/프리미엄)를 산정하세요.
-각 시나리오의 fob_factors에는 **이 제품과 시장에 최적화된 실제 비율**을 제시하세요.
-모든 가격은 **IDR** 단위로 제시하세요. 참조가가 IDR이 아니면 환율로 변환하세요.
-
-아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
-{{
-  "rationale": "시장 전반적 근거 2-3문장",
-  "public": {{
-    "market_note": "공공 시장 특이사항 1문장",
-    "scenarios": [
-      {{
-        "name": "저가 진입",
-        "price_idr": 숫자,
-        "fob_result_idr": 숫자,
-        "reason": "포지셔닝 근거 1-2문장",
-        "fob_factors": [
-          {{"name": "수입관세", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "유통사 마진", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "병원·BPJS 마진", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "에이전트 수수료", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "운임·보험", "type": "pct_deduct", "value": 숫자, "rationale": "CIF→FOB 운임 차감"}}
-        ]
-      }},
-      {{"name": "기준", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}},
-      {{"name": "프리미엄", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}}
-    ]
-  }},
-  "private": {{
-    "market_note": "민간 시장 특이사항 1문장",
-    "scenarios": [
-      {{
-        "name": "저가 진입",
-        "price_idr": 숫자,
-        "fob_result_idr": 숫자,
-        "reason": "포지셔닝 근거 1-2문장",
-        "fob_factors": [
-          {{"name": "수입관세", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "유통사 마진", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "소매 마진", "type": "pct_deduct", "value": 숫자, "rationale": "약국·병원 소매 마진"}},
-          {{"name": "PPN 부가세", "type": "pct_deduct", "value": 11, "rationale": "인도네시아 부가세 고정 11%"}},
-          {{"name": "에이전트 수수료", "type": "pct_deduct", "value": 숫자, "rationale": "적용 근거 한 문장"}},
-          {{"name": "운임·보험", "type": "pct_deduct", "value": 숫자, "rationale": "CIF→FOB 운임 차감"}}
-        ]
-      }},
-      {{"name": "기준", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}},
-      {{"name": "프리미엄", "price_idr": 숫자, "fob_result_idr": 숫자, "reason": "...", "fob_factors": [...]}}
-    ]
-  }}
-}}
-
-참조가가 미확인이면 경쟁사 가격·제품 특성·HS코드를 기반으로 합리적인 IDR 가격을 추정하세요."""
+## 작성 지시
+시스템 프롬프트의 JSON 스키마를 정확히 따라 공공·민간 각 3개 시나리오를 산정하세요.
+- 참조가가 IDR {ref_price_idr:,}이므로 이를 기준으로 시나리오를 설계하세요.
+- 참조가가 0이면 경쟁사 가격·제품 특성·HS코드 기반으로 합리적 IDR 추정가를 산정하세요.
+- fob_factors 각 항목에 이 제품·시장에 최적화된 실제 비율을 제시하세요.
+- scenarios 최상위 키에 public.scenarios를 복사해 PDF 생성기와 호환되게 해주세요.
+- public_market_strategy / private_market_strategy 도 최상위에 포함하세요.
+- recommendation 필드로 최종 채널 전략 권고를 추가하세요.
+- JSON 하나만 반환, {{ 로 시작 }} 로 끝, 코드블록 없이 출력합니다."""
 
         analysis_resp = await asyncio.to_thread(
             lambda: client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=4096,
+                max_tokens=5000,
+                system=_ID_P2_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": analysis_prompt}],
             )
         )
@@ -1469,55 +1586,100 @@ FOB가 = 현지 유통가 ÷ (1 + 병원마진) ÷ (1 + 유통사마진) ÷ (1 +
         analysis: dict[str, Any] = {}
         try:
             raw_analysis = analysis_resp.content[0].text
-            m_json2 = re.search(r"\{.*\}", raw_analysis, re.S)
-            if m_json2:
-                analysis = json.loads(m_json2.group(0))
+            analysis = _p2_extract_json(raw_analysis)
         except Exception:
-            # 폴백: 기본 IDR 추정값으로 두 시장 공통 구조 생성
-            base_idr = int(ref_price * usd_idr * 0.3) if ref_price and usd_idr else 50000
-            def _mk_fob_factors_pub(mult: float) -> list:
+            # ── 폴백: 인도네시아 표준 FOB 구조로 두 시장 공통 생성 ─────────────
+            base_pub  = ref_price_idr if ref_price_idr else 50_000
+            base_priv = int(base_pub * 1.4)   # 민간은 HET 기준 — 공공 조달가보다 높음
+
+            def _factors_pub(rel: float) -> list:
                 return [
-                    {"name": "수입관세", "type": "pct_deduct", "value": 7.5, "rationale": "인도네시아 의약품 평균 관세"},
-                    {"name": "유통사 마진", "type": "pct_deduct", "value": 18.0, "rationale": "공공 입찰 유통 마진"},
-                    {"name": "병원·BPJS 마진", "type": "pct_deduct", "value": 15.0, "rationale": "공공 병원 약품 마진"},
-                    {"name": "에이전트 수수료", "type": "pct_deduct", "value": round(3 * mult, 1), "rationale": "현지 에이전트"},
-                    {"name": "운임·보험", "type": "pct_deduct", "value": 4.0, "rationale": "CIF→FOB 운임"},
+                    {"name": "수입관세",     "type": "pct_deduct", "value": 7.5,          "rationale": "인도네시아 의약품 평균 관세 (HS 3004.90)"},
+                    {"name": "PBF 유통마진", "type": "pct_deduct", "value": round(18 * rel, 1), "rationale": "공공 입찰 PBF 유통 마진"},
+                    {"name": "병원·BPJS마진","type": "pct_deduct", "value": 15.0,          "rationale": "공공병원 약품 마진"},
+                    {"name": "에이전트",     "type": "pct_deduct", "value": round(3  * rel, 1), "rationale": "현지 에이전트 수수료"},
+                    {"name": "운임·보험",    "type": "pct_deduct", "value": 4.0,           "rationale": "CIF→FOB 운임·보험 차감"},
                 ]
-            def _mk_fob_factors_pri(mult: float) -> list:
+
+            def _factors_pri(rel: float) -> list:
                 return [
-                    {"name": "수입관세", "type": "pct_deduct", "value": 7.5, "rationale": "인도네시아 의약품 평균 관세"},
-                    {"name": "유통사 마진", "type": "pct_deduct", "value": 23.0, "rationale": "민간 도매 유통 마진"},
-                    {"name": "소매 마진", "type": "pct_deduct", "value": 35.0, "rationale": "약국·민간병원 소매 마진"},
-                    {"name": "PPN 부가세", "type": "pct_deduct", "value": 11.0, "rationale": "부가세 고정 11%"},
-                    {"name": "에이전트 수수료", "type": "pct_deduct", "value": round(4 * mult, 1), "rationale": "현지 에이전트"},
-                    {"name": "운임·보험", "type": "pct_deduct", "value": 4.0, "rationale": "CIF→FOB 운임"},
+                    {"name": "수입관세",    "type": "pct_deduct", "value": 7.5,           "rationale": "인도네시아 의약품 평균 관세"},
+                    {"name": "유통사마진",  "type": "pct_deduct", "value": round(23 * rel, 1), "rationale": "민간 도매 PBF 유통 마진"},
+                    {"name": "소매마진",    "type": "pct_deduct", "value": 35.0,           "rationale": "약국·민간병원 소매 마진"},
+                    {"name": "PPN 부가세",  "type": "pct_deduct", "value": 11.0,           "rationale": "인도네시아 부가세 고정 11%"},
+                    {"name": "에이전트",    "type": "pct_deduct", "value": round(4  * rel, 1), "rationale": "현지 에이전트 수수료"},
+                    {"name": "운임·보험",   "type": "pct_deduct", "value": 4.0,            "rationale": "CIF→FOB 운임·보험 차감"},
                 ]
+
             def _calc_fob(price: int, factors: list) -> int:
                 p = float(price)
                 for f in factors:
-                    p *= (1 - f["value"] / 100)
+                    p *= (1.0 - f["value"] / 100.0)
                 return max(1, int(p))
-            def _mk_scenarios(base: int, fob_fn) -> list:
-                mults = [0.85, 1.0, 1.18]
-                names = ["저가 진입", "기준", "프리미엄"]
-                return [{
-                    "name": names[i],
-                    "price_idr": int(base * mults[i]),
-                    "fob_result_idr": _calc_fob(int(base * mults[i]), fob_fn(mults[i])),
-                    "reason": f"{'저마진 점유율 확대' if i==0 else '표준 마진 균형' if i==1 else '프리미엄 포지셔닝'}",
-                    "fob_factors": fob_fn(mults[i]),
-                } for i in range(3)]
+
+            def _mk_sc(base: int, fn, mults=(0.88, 1.0, 1.20)) -> list:
+                names   = ["저가 진입", "기준", "프리미엄"]
+                reasons = [
+                    "e-Katalog 최저가 공략 — PBF 유통 마진 조정으로 FOB 확보",
+                    "FORNAS 기준가 대비 경쟁력 있는 포지셔닝 — PBF 마진 표준 적용",
+                    "개량신약 특허 프리미엄 — PBF 마진 최소화로 FOB 극대화",
+                ]
+                return [
+                    {
+                        "name":          names[i],
+                        "price_idr":     int(base * mults[i]),
+                        "fob_result_idr": _calc_fob(int(base * mults[i]), fn(mults[i])),
+                        "reason":        reasons[i],
+                        "fob_factors":   fn(mults[i]),
+                    }
+                    for i in range(3)
+                ]
+
+            pub_sc  = _mk_sc(base_pub,  _factors_pub)
+            priv_sc = _mk_sc(base_priv, _factors_pri)
+
             analysis = {
-                "rationale": "AI 응답 파싱 오류. 기본 인도네시아 의약품 FOB 역산 구조로 산정합니다.",
+                "rationale": (
+                    "AI 응답 파싱 오류로 인도네시아 표준 FOB 역산 구조 폴백 적용. "
+                    f"참조가 IDR {base_pub:,} 기준 공공·민간 이중 시장 시나리오를 산정합니다."
+                ),
+                "recommendation": (
+                    "공공 채널(e-Katalog·BPJS-Kesehatan) 우선 진입 후 민간 채널 확장을 권장합니다. "
+                    "FORNAS 등재 선행이 공공 조달 접근의 핵심 조건입니다."
+                ),
+                "public_market_strategy": (
+                    "FORNAS 등재 후 e-Katalog 기준 시나리오(IDR "
+                    f"{pub_sc[1]['price_idr']:,})로 입찰 참여를 권장합니다. "
+                    "현지 PBF 파트너 선정 시 공공 조달 이력 보유 여부를 필수 확인합니다."
+                ),
+                "private_market_strategy": (
+                    "Halodoc·K24Klik 디지털 약국 채널과 민간병원 납품을 병행합니다. "
+                    f"민간 기준가 IDR {priv_sc[1]['price_idr']:,} 수준에서 브랜드 포지셔닝을 권장합니다."
+                ),
+                "scenarios": pub_sc,   # PDF 생성기 호환 최상위 복사본
                 "public": {
-                    "market_note": "e-Katalog/BPJS 공공 조달 채널 기준",
-                    "scenarios": _mk_scenarios(base_idr, _mk_fob_factors_pub),
+                    "market_note": "e-Katalog/BPJS-Kesehatan 공공 조달 채널 기준 (폴백 산정)",
+                    "market_strategy": (
+                        "FORNAS 등재 후 e-Katalog 입찰가로 공공병원 납품을 진행합니다."
+                    ),
+                    "scenarios": pub_sc,
                 },
                 "private": {
-                    "market_note": "Halodoc·K24·민간병원 채널 기준",
-                    "scenarios": _mk_scenarios(int(base_idr * 0.7), _mk_fob_factors_pri),
+                    "market_note": "Halodoc·K24·민간병원 채널 기준 — PPN 11% 포함 (폴백 산정)",
+                    "market_strategy": (
+                        "디지털 약국 채널과 민간병원 대상 브랜드 마케팅을 병행합니다."
+                    ),
+                    "scenarios": priv_sc,
                 },
             }
+
+        # ── PDF 생성기 호환: 최상위 scenarios / market_strategy 누락 시 자동 보완 ──
+        if not analysis.get("scenarios") and analysis.get("public", {}).get("scenarios"):
+            analysis["scenarios"] = analysis["public"]["scenarios"]
+        if not analysis.get("public_market_strategy") and analysis.get("public", {}).get("market_strategy"):
+            analysis["public_market_strategy"] = analysis["public"]["market_strategy"]
+        if not analysis.get("private_market_strategy") and analysis.get("private", {}).get("market_strategy"):
+            analysis["private_market_strategy"] = analysis["private"]["market_strategy"]
 
         _p2_ai_task["analysis"] = analysis
         await _emit({

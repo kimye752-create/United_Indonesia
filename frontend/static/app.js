@@ -1897,7 +1897,10 @@ function renderResult(result, refs, pdfName) {
       || (Array.isArray(result.key_factors) ? result.key_factors.join(' / ') : '');
     _setText('risks-conditions', _formatDetailed(riskText));
 
-    // 완료 노트 표시 (result-card는 숨김 DOM이므로 visible 처리 안 함)
+    // 결과 카드 표시
+    document.getElementById('result-card').classList.add('visible');
+
+    // 완료 노트 표시
     _showP1Note(
       `✅ ${result.trade_name || '제품'} 분석 완료 — 판정: ${vLabel}. 상세 결과는 보고서 탭에서 확인하세요.`,
       false
@@ -2212,6 +2215,9 @@ async function runP3Pipeline() {
   const criteriaGrid = document.getElementById('p3-criteria-grid');
   if (criteriaBar)  criteriaBar.style.display  = '';
   if (criteriaGrid) criteriaGrid.style.display = '';
+  // 로그 박스 초기화
+  const logBox = document.getElementById('p3-log-box');
+  if (logBox) { logBox.innerHTML = ''; logBox.style.display = 'none'; }
   _resetP3Progress();
   _setP3Progress('crawl', 'running');
 
@@ -2286,21 +2292,72 @@ async function _pollP3() {
   } catch (_) { /* retry */ }
 }
 
-/** 체크박스 변경 → 서버에 재랭킹 요청 */
+/** P3 실시간 로그 출력 */
+function _p3Log(msg, level = 'info') {
+  const box = document.getElementById('p3-log-box');
+  if (!box) return;
+  box.style.display = '';
+  const line = document.createElement('div');
+  line.className = `log-line log-${level}`;
+  line.textContent = `[${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] ${msg}`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+/** P3 SSE — 바이어 발굴 실시간 로그 수신 */
+(function _startP3SSE() {
+  if (typeof EventSource === 'undefined') return;
+  const es = new EventSource('/api/stream');
+  es.onmessage = function(e) {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.phase === 'buyer') _p3Log(d.message, d.level || 'info');
+    } catch (_) {}
+  };
+  es.onerror = function() { /* silent — SSE 미지원 서버에서 무해하게 무시 */ };
+})();
+
+/** 체크박스 변경 → 가중치 기반 클라이언트사이드 재랭킹 */
 async function p3ReRank() {
   if (!_p3Buyers.length) return;
-  const checked = [...document.querySelectorAll('.p3-cb:checked')].map(cb => cb.value);
+
+  // data-key / data-weight 기반 가중 점수 계산
+  const checkedCbs = [...document.querySelectorAll('.p3-cb:checked')];
+
+  if (checkedCbs.length > 0) {
+    const scored = _p3Buyers.map(b => {
+      const scores  = b.scores  || {};
+      const enriched = b.enriched || {};
+      let total = 0;
+      for (const cb of checkedCbs) {
+        const key = cb.dataset.key;
+        const w   = parseFloat(cb.dataset.weight) || 0;
+        let v = 0;
+        if (key === 'pharmacy_chain') {
+          v = enriched.has_pharmacy_chain ? 100 : 0;
+        } else {
+          v = scores[key] ?? 0;
+        }
+        total += (v * w) / 100;
+      }
+      return { ...b, _rerank_score: total };
+    });
+    scored.sort((a, z) => z._rerank_score - a._rerank_score);
+    _renderP3Cards(scored);
+    return;
+  }
+
+  // 체크된 기준 없음 → 서버 기본 순위 유지 또는 서버 재랭킹
   try {
     const res = await fetch('/api/buyers/rerank', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ criteria: checked.length ? checked : null }),
+      body: JSON.stringify({ criteria: null }),
     });
     const data = await res.json();
     _p3Buyers = data.buyers || _p3Buyers;
     _renderP3Cards(_p3Buyers);
   } catch (_) {
-    // 폴백: 클라이언트사이드 정렬
     _renderP3Cards(_p3Buyers);
   }
 }

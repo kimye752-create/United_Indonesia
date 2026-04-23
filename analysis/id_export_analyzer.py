@@ -80,12 +80,16 @@ _PRODUCT_META: list[dict[str, str]] = [
         "dosage_form":      "Tablet",
         "therapeutic_area": "순환기 / 말초동맥질환 + 이상지질혈증 복합 치료",
         "atc":              "B01AC23 / C10AA07",
-        "patent_tech":      "복합 정제 (임상 연구 기반)",
-        "product_type":     "개량신약 (복합제)",
+        "patent_tech":      "복합 정제 (임상 연구 기반) — 실로스타졸 CR(서방형) 제제 기술 보유",
+        "product_type":     "개량신약 (복합제, CR 서방형)",
         "hs_code":          "3004.90",
         "mims_class":       "Class 2: Cardiovascular & Hematopoietic System",
         "medical_society":  "PERKI (심혈관)",
-        "key_risk":         "인도네시아 기존 진출 이력 — 파트너사 확인 필요",
+        "key_risk":         "경쟁사 IR 제네릭 가격: Pletaal 17,164 IDR, Citaz 18,896 IDR, Stazol 17,177 IDR, Bernofarm 13,928 IDR (K24Klik 기준). "
+                            "CR 제제 목표 HET 32,000~36,000 IDR. "
+                            "배제 파트너: Kalbe(Citaz 보유), Dexa Medica(Stazol/Aggravan 보유), Otsuka(Pletaal 오리지널). "
+                            "유망 파트너: Pharos Indonesia(Ascardia 시너지), Sanbe Farma(항혈전 공백), Novell Pharma(In-licensing 특화). "
+                            "IK-CEPA 관세 0%, PMK-131 VAT 실효 11%.",
         "priority":         "high",
     },
     {
@@ -184,85 +188,182 @@ def _claude_analysis_model_id() -> str:
 
 # ── Claude 분석 프롬프트 ──────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = """당신은 인도네시아 완제의약품 시장 진출 전문가입니다.
-한국 제약사의 수출 적합성을 BPOM 규제·FORNAS 급여·e-Katalog 조달·PBF 유통·의학회 가이드라인 5개 축으로 분석합니다.
-분석 결과는 실제 수출 전략 보고서에 그대로 삽입되므로, 모든 내용을 구체적·실무적으로 작성하세요.
+_SYSTEM_PROMPT = (
+    # ── 페르소나 & 임무 ──────────────────────────────────────────────────────────
+    "당신은 한국유나이티드제약의 인도네시아 수출 전략 전문 애널리스트입니다. "
+    "한국 제약사의 인도네시아 완제의약품 수출 적합성을 "
+    "BPOM 규제·FORNAS 급여·e-Katalog 조달·PBF 유통·의학회 가이드라인 5개 축으로 분석합니다. "
+    "분석 결과는 실제 수출 전략 보고서에 그대로 삽입되므로, 모든 내용을 구체적·실무적으로 작성하세요. "
+    "회사 표기는 반드시 '한국유나이티드제약'만 사용합니다.\n\n"
 
-분석 원칙:
-1. 판정은 반드시 "적합" / "조건부" / "부적합" 중 하나
-2. 모든 근거는 두괄식(결론 먼저, 근거 후술)
-3. 가격 추정은 IDR 단위로 표기 (예: Rp 15,000/정)
-4. 개량신약 복합제의 경우 CERDAS 원칙(합리성·비용 효과성) 활용
-5. FORNAS 미등재 시 대안 전략 제시 필수
-6. 모든 수치(유병률, 시장규모, 가격)는 출처와 연도를 명시
-7. '-' 또는 null 은 정보가 없을 때만 사용 — 추정이 가능하면 반드시 추정치 제시
+    # ── 데이터 원칙 (최우선) ─────────────────────────────────────────────────────
+    "【데이터 원칙 — 최우선】\n"
+    "1. 크롤링 JSON(BPOM·e-Katalog·FORNAS·MIMS·K24Klik·SwipeRx)에 있는 수치·코드·브랜드명·가격을 최우선으로 사용합니다.\n"
+    "2. 크롤 데이터에 없는 수치·가격·코드·등재 여부는 절대 창작하지 않습니다. "
+    "추정이 불가한 경우 '미확보(현지 확인 필요)'로 명시합니다. "
+    "추정이 가능한 경우에도 해당 수치 뒤에 반드시 '(추정)' 태그를 붙입니다. "
+    "예) 'Rp 12,000/정(추정)', 'FORNAS Tingkat 2 등재 가능(추정)'.\n"
+    "3. BPOM 등록번호(NIE), e-Katalog 등재 가격, 경쟁사 목록, HET(최고 판매가)는 실제 크롤 데이터와 정합시킵니다.\n"
+    "4. 크롤 컨텍스트에 '[e-Katalog 크롤링 실패]' · '[e-Katalog] … 조달 등록 없음' 등이 표시된 경우, "
+    "해당 소스 관련 모든 수치(조달가·HET·급여가·도매가·FORNAS 등재·SwipeRx B2B가)는 '(추정)' 없이 제시할 수 없습니다.\n"
+    "5. 추정치는 반드시 출처·연도를 명시한 후 '(추정)' 태그를 붙입니다. "
+    "예) 'Rp 12,000~15,000/정 (IQVIA 2024 유사 성분 기준, 추정)'.\n\n"
 
-출력 JSON 스키마 (모든 필드 필수):
-{
-  "verdict": "적합|조건부|부적합",
-  "verdict_en": "suitable|conditional|unsuitable",
-  "rationale": "종합 판정 근거 (2~3문장 두괄식) — 이 제품이 인도네시아 시장에 적합/부적합한 핵심 이유",
+    # ── 분석 원칙 ────────────────────────────────────────────────────────────────
+    "【분석 원칙】\n"
+    "5. 판정은 반드시 '적합' / '조건부' / '부적합' 중 하나 (TKDN·BPOM 등록 여부 기준).\n"
+    "6. 모든 근거는 두괄식(결론 먼저, 근거 후술).\n"
+    "7. 가격 추정은 IDR 단위 표기 (예: Rp 15,000/정). KRW 환산 필요 시 1 IDR ≈ 0.085 KRW 기준.\n"
+    "8. 개량신약·복합제는 CERDAS 원칙(합리성·비용효과성·임상 근거) 근거로 FORNAS 등재 전략 제시.\n"
+    "9. FORNAS 미등재 시 민간채널(Halodoc·K24Klik·SwipeRx B2B) 대안 전략 제시 필수.\n"
+    "10. 모든 수치(유병률·시장규모·가격)는 출처·연도를 괄호 안에 명시 (예: IDF 2023, IQVIA 2024).\n"
+    "11. FOB 수출가 역산: "
+    "Logic A(공공) = e-Katalog 목표 입찰가(USD) × 0.30, "
+    "Logic B(민간) = 목표 HET ÷ 1.11 ÷ 1.28 ÷ 1.15 ÷ 1.05. "
+    "IK-CEPA 관세 0%, 실효 VAT 11% 반드시 반영.\n"
+    "12. 파트너 추천 시 동일성분 보유사(자가잠식 리스크)를 우선 배제하고, "
+    "순환기·대사질환 파이프라인 보유사와의 교차판매 시너지를 핵심 선정 기준으로 제시.\n\n"
 
-  "basis_market_medical": "의료 거시환경 종합 분석 (3~5문장) — 인도네시아 전반 의약품 시장 현황 + 이 제품 치료분야의 구체적 시장 상황(유병률, 처방 트렌드, 경쟁구도)",
-  "disease_prevalence": "이 제품 치료 분야 인도네시아 유병률/환자 수 (예: '천식·COPD 유병률 약 7.8%, 추정 환자 1,800만 명 — WHO 2023')",
-  "related_market": "이 제품 관련 세부 시장 규모 (예: '인도네시아 호흡기 의약품 시장 USD 4.2억, 연 8% 성장 — IQVIA 2024')",
+    # ── 인도네시아 특화 약어 정의 ────────────────────────────────────────────────
+    "【인도네시아 특화 정의 — 최초 노출 시 풀어서 쓸 것】\n"
+    "- BPOM (Badan Pengawas Obat dan Makanan · 인도네시아 식약처): ML=수입 허가 코드, MD=국내 생산 코드.\n"
+    "- JKN (Jaminan Kesehatan Nasional · 국가건강보험): BPJS-Kesehatan이 운영, FORNAS 등재 = JKN 급여 자동 인정.\n"
+    "- TKDN (Tingkat Komponen Dalam Negeri · 현지 부품/제조 비중): 낮으면 공공조달(e-Katalog) 제한.\n"
+    "- NIE (Nomor Izin Edar · 품목 허가 번호): BPOM 발행, 5년 주기 갱신.\n"
+    "- PBF (Pedagang Besar Farmasi · 의약품 도매업체): 현지 유통 필수 경유, 마진 15~25%.\n"
+    "- FORNAS: 국가 필수의약품 처방집(Formularium Nasional), 등재 시 JKN 급여 자동 인정.\n"
+    "- HET (Harga Eceran Tertinggi · 최고 소매가): 정부 고시 상한가.\n"
+    "- LKPP: 국가조달청, e-Katalog 운영 기관.\n\n"
 
-  "basis_regulatory": "BPOM 인허가 현황 및 전략 (3~4문장) — ML 코드 신청 절차, 동일 성분 기등록 제품 현황, 특허 연계(Patent Linkage) 리스크, 예상 심사 기간",
-  "bpom_reg": "BPOM 등록 전략 요약 (2~3문장) — 이 제품의 구체적 등록 경로(abridged/full NDA), 현지 MAH 선정 전략, 예상 타임라인",
+    # ── 출력 JSON 스키마 ─────────────────────────────────────────────────────────
+    "【출력 JSON 스키마 — 모든 필드 필수, 빈 문자열 금지】\n"
+    "{\n"
+    '  "verdict": "적합|조건부|부적합",\n'
+    '  "verdict_en": "suitable|conditional|unsuitable",\n'
+    '  "rationale": "종합 판정 근거 (2~3문장 두괄식) — 핵심 적합/부적합 이유와 전제 조건",\n\n'
 
-  "basis_procurement": "FORNAS 급여 및 e-Katalog 조달 전략 (3~4문장) — FORNAS 등재 가능성, JKN 급여 전략, e-Katalog 입찰 가격 추정",
-  "ekatalog_price_hint": "e-Katalog 예상 조달가 (IDR/단위) — 동일 성분 현재 조달가 비교 포함 (예: 'Rp 12,500~15,000/정. 현재 제네릭 조달가 Rp 8,000~10,000/정 대비 프리미엄 가격 정당화 필요')",
+    '  "basis_market_medical": "의료 거시환경 + 치료분야 시장 분석 (3~5문장) — 인도네시아 의약품 시장 현황·JKN 보급률, 이 제품 치료분야 유병률·처방 트렌드·경쟁구도. 출처·연도 필수",\n'
+    '  "disease_prevalence": "이 치료 분야 인도네시아 유병률·추정 환자 수 (예: \'천식·COPD 유병률 약 7.8%, 추정 환자 1,800만 명 — WHO 2023\')",\n'
+    '  "related_market": "이 제품 관련 세부 시장 규모·성장률 (예: \'인도네시아 호흡기 의약품 시장 USD 4.2억, 연 8% 성장 — IQVIA 2024\')",\n\n'
 
-  "basis_distribution": "PBF 유통·마진 구조 분석 (2~3문장) — 현지 PBF 파트너 전략, 공공·민간 채널별 마진율, 가격 스프레드",
-  "basis_clinical": "임상·학회 포지셔닝 전략 (2~3문장) — 관련 인도네시아 의학회(PERKI/PDPI/PGI 등) 가이드라인 반영, KOL 확보 전략",
+    '  "basis_regulatory": "BPOM 인허가 전략 (3~4문장) — 크롤 데이터 기반 동일 성분 기등록 NIE 현황, ML 코드 신청 절차, 특허 연계(Patent Linkage) 리스크 평가, 예상 심사 기간 및 비용",\n'
+    '  "bpom_reg": "BPOM 등록 실행 계획 (2~3문장) — abridged/full NDA 경로 선택, 현지 MAH 선정 전략, 예상 타임라인(개월) 및 등록 비용 추정(USD)",\n\n'
 
-  "entry_pathway": "단계별 시장 진출 로드맵 (구체적 단계와 기간 포함, 예: '1단계(6~12개월): BPOM ML 신청 → 2단계(12~18개월): FORNAS 등재 신청 → 3단계: e-Katalog 등록')",
+    '  "basis_procurement": "FORNAS·e-Katalog 조달 전략 (3~4문장) — FORNAS 등재 가능성·분류(Tingkat 1/2/3), JKN HET 가격 산정, e-Katalog 입찰 전략, LKPP 공개 조달가 비교",\n'
+    '  "ekatalog_price_hint": "e-Katalog 예상 조달가 (예: \'Rp 12,500~15,000/정. 현재 동성분 제네릭 조달가 Rp 8,000~10,000/정 대비 프리미엄 근거: 개량제형 임상 우위\')",\n\n'
 
-  "ref_price_text": "인도네시아 시장 참고 가격 (텍스트) — 경쟁 제품 시장가, 이 제품의 권장 포지셔닝 가격대 (예: 'GSK Seretide IDR 180,000~220,000/inhaler. Sereterol 목표가 IDR 130,000~160,000 (20~30% 하회)')",
-  "price_positioning_pbs": "가격 포지셔닝 전략 (2~3문장) — 경쟁약 대비 가격 포지셔닝, BPJS 급여 등재 시 최대 급여가(HET) 추정, 민간 채널 소비자가 추정",
+    '  "basis_distribution": "PBF 유통·마진 구조 (2~3문장) — 권장 PBF 파트너 선정 기준, 공공채널(PBF→공공병원·BPJS) vs 민간채널(PBF→민간병원·약국·디지털) 마진율(%) 구분, 스프레드 전략",\n'
+    '  "basis_clinical": "임상·학회 포지셔닝 전략 (2~3문장) — 관련 인도네시아 의학회(PERKI/PDPI/PGI/PERHOMPEDIN/PDSRI 등) 가이드라인 근거, KOL 확보·학술 발표 전략, 처방 확대 로드맵",\n\n'
 
-  "risks_conditions": "주요 리스크 3가지와 충족 조건 (각 리스크를 '▸ 리스크: 내용 / 대응: 내용' 형식으로)",
-  "key_factors": ["핵심 성공요인 1", "핵심 성공요인 2", "핵심 성공요인 3"],
-  "sources": ["인용 출처 1 (기관명+연도)", "인용 출처 2", "인용 출처 3"],
-  "confidence_note": "분석 신뢰도 (높음/중간/낮음) + 근거 한 문장"
-}"""
+    '  "entry_pathway": "단계별 시장 진출 로드맵 (기간 명시, 예: \'1단계(0~12개월): 현지 MAH 계약+BPOM ML 신청 → 2단계(12~18개월): FORNAS 등재 신청+KOL 활동 → 3단계(18~24개월): e-Katalog 등록+공공병원 입찰\')",\n\n'
+
+    '  "ref_price_text": "인도네시아 시장 참고 가격 — 크롤 데이터 기반 경쟁 제품 현재 시장가(K24Klik·SwipeRx), 이 제품 권장 포지셔닝 가격대 (공공/민간 구분, IDR 표기)",\n'
+    '  "price_positioning_pbs": "가격 포지셔닝 전략 (2~3문장) — 경쟁약 대비 포지셔닝 근거, BPJS 급여 HET 추정, 민간 채널 소비자가 추정 (IDR 표기, 필요 시 KRW 환산 병기)",\n\n'
+
+    '  "risks_conditions": "주요 리스크 3가지와 대응 — 각각 \'▸ 리스크: [내용] / 대응: [내용]\' 형식으로",\n'
+    '  "key_factors": ["핵심 성공요인 1 (구체적)", "핵심 성공요인 2 (구체적)", "핵심 성공요인 3 (구체적)"],\n'
+    '  "sources": ["출처1 (기관+연도)", "출처2 (기관+연도)", "출처3 (기관+연도)"],\n'
+    '  "confidence_note": "분석 신뢰도 (높음/중간/낮음) + 이유 (예: \'중간 — e-Katalog 조달가 확보, FORNAS 등재 여부 현지 확인 필요\')"\n'
+    "}\n\n"
+
+    # ── 절대 금지 ────────────────────────────────────────────────────────────────
+    "【환각 금지】 크롤 JSON에 없는 숫자·NIE 코드·브랜드명·가격을 절대 창작하지 않습니다.\n"
+    "【마크다운 금지】 **, ##, 백틱(`), 하이퍼링크 문법을 절대 사용하지 않습니다.\n"
+    "【출력 형식】 JSON 객체 하나만 출력합니다. 설명·서두·코드블록 없이 { 로 시작하여 } 로 끝냅니다."
+)
 
 
 def _build_user_prompt(meta: dict[str, str], crawl_context: str = "") -> str:
-    base = f"""[분석 대상 제품]
-제품명: {meta['trade_name']}
-INN/성분: {meta['inn']}
+    # 개량신약·복합제 전용 추가 컨텍스트
+    imd_note = ""
+    if "개량신약" in meta.get("product_type", "") or "복합제" in meta.get("product_type", ""):
+        imd_note = (
+            "\n[개량신약·복합제 특수 분석 요건]\n"
+            "- CERDAS(Cara, Efisiensi, Rasional, Daftar, Aman, Sesuai) 원칙 적용 여부 평가\n"
+            "- 인도네시아 내 단일성분 제품 대비 복합제 FORNAS 등재 기준(Formularium Tingkat) 명시\n"
+            "- CombiGel/Seamless Pouch 등 특허 제형의 현지 경쟁 대체품 부재 여부 평가\n"
+            f"- 특허 기술({meta.get('patent_tech','')}) 관련 BPOM Patent Linkage 리스크 평가 필수\n"
+        )
+
+    crawl_section = crawl_context.strip() if crawl_context.strip() else (
+        "크롤링 데이터 없음 — 크롤러 타임아웃 또는 해당 성분 미등록. "
+        "시스템 프롬프트의 인도네시아 시장 컨텍스트와 제품 메타 기반으로 최선 추정값 제시."
+    )
+
+    # ── 누락 소스별 추정 경고 동적 생성 ──────────────────────────────────────────
+    missing_warnings: list[str] = []
+    if "[e-Katalog 크롤링 실패" in crawl_section or "조달 등록 없음" in crawl_section:
+        missing_warnings.append(
+            "⚠ e-Katalog 실데이터 없음 → ekatalog_price_hint·basis_procurement의 조달가·HET 수치는 "
+            "모두 '(추정)' 태그 필수"
+        )
+    if "[FORNAS 크롤링 실패" in crawl_section or "국가처방집 미등재" in crawl_section:
+        missing_warnings.append(
+            "⚠ FORNAS 실데이터 없음 → FORNAS 분류·급여 등재 가능성 수치는 모두 '(추정)' 태그 필수"
+        )
+    if "[SwipeRx 크롤링 실패" in crawl_section or "B2B 미등록" in crawl_section:
+        missing_warnings.append(
+            "⚠ SwipeRx 실데이터 없음 → B2B 도매가·ref_price_text 도매 수치는 모두 '(추정)' 태그 필수"
+        )
+    if "[BPOM 크롤링 실패" in crawl_section or "NIE 등록 제품 없음" in crawl_section:
+        missing_warnings.append(
+            "⚠ BPOM 실데이터 없음 → NIE 코드·ML/MD 유형·등록 현황은 모두 '(추정)' 또는 '미확보' 표기 필수"
+        )
+    if "[MIMS 크롤링 실패" in crawl_section or "검색 결과 없음" in crawl_section:
+        missing_warnings.append(
+            "⚠ MIMS 실데이터 없음 → 경쟁 제품 목록·MIMS 분류는 '(추정)' 또는 '미확보' 표기 필수"
+        )
+    if "[K24Klik 크롤링 실패" in crawl_section or "소매가 데이터 없음" in crawl_section:
+        missing_warnings.append(
+            "⚠ K24Klik 실데이터 없음 → 소매가·ref_price_text 소매 수치는 모두 '(추정)' 태그 필수"
+        )
+    missing_warnings_section = (
+        "\n[추정 표기 필수 항목 — 아래 소스 데이터 부재로 추정 수치에 반드시 '(추정)' 태그 부착]\n"
+        + "\n".join(missing_warnings)
+    ) if missing_warnings else ""
+
+    return f"""[분석 대상 제품 — 한국유나이티드제약]
+제품명(브랜드): {meta['trade_name']}
+INN/성분·규격: {meta['inn']}
 제형: {meta['dosage_form']}
 치료 분야: {meta['therapeutic_area']}
 ATC 코드: {meta['atc']}
-특허 기술: {meta['patent_tech']}
+특허·기술: {meta['patent_tech']}
 제품 유형: {meta['product_type']}
 HS Code: {meta['hs_code']}
 MIMS 분류: {meta['mims_class']}
-연관 학회: {meta['medical_society']}
-핵심 리스크: {meta['key_risk']}
-
-[인도네시아 시장 컨텍스트]
+연관 인도네시아 의학회: {meta['medical_society']}
+사전 식별 핵심 리스크: {meta.get('key_risk', '미식별')}
+{imd_note}
+[인도네시아 거시 시장 컨텍스트 — 분석의 배경값으로 활용]
 - 인구: 2억 8,100만 명 (2024, BPS Indonesia)
-- 1인당 GDP: USD 4,941 (2024, IMF)
+- 1인당 GDP: USD 4,941 (2024, IMF) · 구매력 기준 USD 15,836
 - 의약품 시장 규모: USD 87억 (2024E, IQVIA/GlobalData), 연 7~9% 성장
 - 보건 지출: GDP 대비 약 3.2% (WHO 2023)
-- 의약품 수입 의존도: 원료의약품 기준 약 90% (Kemenkes RI)
-- 국가 건강보험(JKN/BPJS-Kesehatan): 전체 인구 84% 가입, FORNAS 등재 = JKN 급여 인정
-- BPOM 등록: ML(수입) vs MD(국내) 코드, 5년 주기 갱신, 통상 12~24개월 소요
-- e-Katalog/LKPP: 공공병원 의약품 조달 시스템, HET(최고 판매가) 설정
-- 특허 연계(Patent Linkage): BPOM 허가 신청 시 DGIP 특허 검색 첨부 의무
-- TKDN: 현지화 요건 — 수입(ML) 제품 공공조달 제한 가능성
-- PBF(Pedagang Besar Farmasi): 의무 현지 유통사 경유, 마진 15~25%
-- PPN(부가가치세): 11% (2022년 개정, 의약품 면세 적용 제한적)
+- 의약품 수입 의존도(원료): 약 90% (Kemenkes RI)
+- JKN/BPJS-Kesehatan 가입률: 전체 인구 약 84% (BPJS 2024)
+- FORNAS 등재 = JKN(국가건강보험) 급여 자동 인정 · LKPP e-Katalog 조달 가능
+- BPOM ML(수입) 등록: 통상 12~24개월, 비용 USD 3,000~8,000
+- 특허 연계(Patent Linkage): BPOM 신청 시 DGIP 특허 첨부 의무
+- TKDN 현지화 요건: 수입(ML) 제품 공공조달 참여 시 일부 제한
+- PBF 의무 경유 마진: 공공 15~22%, 민간 20~35%
+- 수입 관세: IK-CEPA(한-인니 CEPA, 2023년 발효) 적용 시 완제의약품 HS 3004.xx 관세 0% (MFN 세율 최대 15% 대비 결정적 우위)
+- PPN 부가가치세: PMK-131/2024 개정으로 표준세율 12% — 단, 의약품 등 비사치재는 과세표준 11/12 적용 → 실효세율 11% 유지 (2025.01.01 시행)
+- 환율 기준: 1 USD ≈ Rp 15,750, 1 IDR ≈ 0.085 KRW
+- FOB 수출가 역산 로직 A (공공 e-Katalog 시장): 목표 입찰가(IDR) × 0.30 계수 → FOB (수입원가·유통마진·파트너이익 포함)
+- FOB 수출가 역산 로직 B (민간 소매 시장): 목표 HET ÷ 1.11(VAT) ÷ 1.28(약국 마진) ÷ 1.15(PBF 마진) ÷ 1.05(운임·보험) = FOB
+- 파트너 필터 조건: 동일성분 미보유사 우선 (자가잠식 방지), 순환기 파이프라인 보유사 = 교차판매 시너지 극대화
 
-[크롤링 수집 데이터]
-{crawl_context if crawl_context else "현재 크롤링 데이터 없음 — Claude 추론 기반 분석"}
+[크롤링 수집 데이터 — BPOM·e-Katalog·FORNAS·MIMS·K24Klik·SwipeRx]
+{crawl_section}
 
-위 제품의 인도네시아 수출 전략 분석 보고서를 위한 JSON을 작성하세요.
-반드시 모든 필드를 채우고, 수치는 출처·연도를 괄호 안에 명시하세요.
-추정값도 '-' 대신 근거와 함께 구체적으로 작성하세요."""
-    return base
+{missing_warnings_section}
+[작성 지시]
+위 제품에 대해 시스템 프롬프트의 JSON 스키마를 정확히 따라 분석 보고서를 작성하세요.
+- 크롤 데이터에 있는 NIE·가격·제품명은 반드시 그대로 인용합니다.
+- 크롤 데이터에 없는 항목은 시장 컨텍스트+제품 특성 기반 추정치를 출처·연도와 함께 제시하되, 수치 뒤에 반드시 '(추정)' 태그를 붙입니다.
+- 모든 IDR 가격은 Rp X,XXX 형식으로 표기합니다.
+- JSON 객체 하나만 반환합니다. {{ 로 시작하여 }} 로 끝내며, 코드블록·서두 설명 없이 출력합니다."""
 
 
 # ── 크롤링 데이터 통합 ─────────────────────────────────────────────────────────
@@ -275,12 +376,107 @@ def _inn_primary(inn: str) -> str:
     return inn.split(" ")[0]
 
 
+# ── 제품별 크롤 검색어 오버라이드 ──────────────────────────────────────────────
+# _inn_primary()가 잘못된 키워드를 추출하는 제품에 대해 명시적으로 지정.
+# 예) Gadobutrol → 인도네시아 검색어 "gadobutrol" (단일 단어로도 매칭 미흡)
+#     Omega-3-acid ethyl esters → "omega-3" (첫 단어 추출 시 영양제 혼동)
+_CRAWL_KEYWORD_OVERRIDE: dict[str, str] = {
+    "ID_gadvoa_inj":       "gadobutrol",
+    "ID_omethyl_cutielet": "omega-3",
+}
+
+
+def _crawl_keyword(meta: dict[str, str]) -> str:
+    """크롤 검색어 결정.
+
+    제품별 오버라이드(_CRAWL_KEYWORD_OVERRIDE)가 있으면 그것을 사용하고,
+    없으면 INN 첫 단어(_inn_primary)로 폴백한다.
+    """
+    return _CRAWL_KEYWORD_OVERRIDE.get(meta["product_id"]) or _inn_primary(meta["inn"])
+
+
+def _db_rows_to_crawl(source_key: str, db_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """DB 저장 행을 크롤 원시 포맷으로 역변환.
+
+    fetch_crawl_cache() 결과를 기존 크롤 딕셔너리 형식으로 변환하여
+    _fetch_crawl_context() 포맷팅 코드를 재사용할 수 있게 함.
+    """
+    results: list[dict[str, Any]] = []
+    for row in db_rows:
+        cs = row.get("country_specific") or {}
+        base: dict[str, Any] = {
+            "product_name": row.get("trade_name", ""),
+            "inn":          row.get("active_ingredient", ""),
+            "strength":     row.get("strength", ""),
+            "dosage_form":  row.get("dosage_form", ""),
+            "_from_cache":  True,
+            "_cached_at":   row.get("crawled_at", ""),
+        }
+        if source_key == "ID:bpom":
+            base.update({
+                "reg_no":       row.get("registration_number") or cs.get("nie", ""),
+                "nie":          row.get("registration_number") or cs.get("nie", ""),
+                "reg_type":     cs.get("ml_md", ""),
+                "status":       cs.get("status", ""),
+                "expiry_date":  cs.get("expiry_date", ""),
+                "atc_code":     cs.get("atc_code", ""),
+                "manufacturer": cs.get("manufacturer", ""),
+                "registrar":    cs.get("manufacturer", ""),
+            })
+        elif source_key == "ID:ekatalog":
+            base.update({
+                "price_idr": cs.get("price_idr") or row.get("price_local"),
+                "het_idr":   cs.get("het_idr"),
+                "satuan":    cs.get("satuan", ""),
+                "supplier":  cs.get("supplier", ""),
+                "year":      cs.get("year", ""),
+            })
+        elif source_key == "ID:fornas":
+            base.update({
+                "fornas_class": cs.get("tingkat", ""),
+                "tingkat":      cs.get("tingkat", ""),
+                "restriction":  cs.get("restriction", ""),
+                "indication":   cs.get("indication", ""),
+            })
+        elif source_key == "ID:mims":
+            base.update({
+                "drug_type":    cs.get("drug_type", ""),
+                "mims_class":   cs.get("mims_class", ""),
+                "indication":   cs.get("indication", ""),
+                "detail_url":   cs.get("detail_url", ""),
+                "manufacturer": "",
+                "company":      "",
+            })
+        elif source_key == "ID:k24klik":
+            base.update({
+                "price_idr":    cs.get("price_idr") or row.get("price_local"),
+                "price_unit":   cs.get("price_unit", ""),
+                "stock_status": cs.get("stock_status", ""),
+                "product_url":  cs.get("product_url", ""),
+                "manufacturer": "",
+            })
+        elif source_key == "ID:swiperx":
+            base.update({
+                "price_idr":    cs.get("price_idr") or row.get("price_local"),
+                "category":     cs.get("category", ""),
+                "pack_size":    cs.get("pack_size", ""),
+                "manufacturer": cs.get("manufacturer", ""),
+            })
+        results.append(base)
+    return results
+
+
 async def _fetch_crawl_context(meta: dict[str, str]) -> str:
     """BPOM · e-Katalog · FORNAS · MIMS · K24Klik · SwipeRx 6개 소스
     병렬 크롤링 후 Claude 분석 컨텍스트 문자열로 반환.
-    개별 크롤러 실패는 노트로 기록하되 전체를 중단하지 않는다.
+
+    DB 적재 & 캐시 폴백 전략:
+      - 크롤 성공 → Supabase products 테이블에 즉시 upsert (누적 적재)
+      - 크롤 실패·타임아웃 → 7일 이내 DB 캐시로 자동 폴백
+      - 양쪽 모두 없으면 → 기존 오류 메시지 유지
     """
-    kw = _inn_primary(meta["inn"])
+    product_id = meta["product_id"]
+    kw = _crawl_keyword(meta)
 
     # ── 각 크롤러를 타임아웃 포함 래퍼로 실행 ──────────────────────────────────
     async def _safe(coro, label: str):
@@ -297,6 +493,7 @@ async def _fetch_crawl_context(meta: dict[str, str]) -> str:
     from utils.id_mims_crawler      import search_mims
     from utils.id_k24klik_crawler   import search_k24klik
     from utils.id_swiperx_crawler   import search_swiperx
+    from utils.db import save_crawl_results, fetch_crawl_cache
 
     (bpom_r, ek_r, fornas_r, mims_r, k24_r, swrx_r) = await asyncio.gather(
         _safe(search_bpom(kw,     max_results=5), "BPOM"),
@@ -307,87 +504,229 @@ async def _fetch_crawl_context(meta: dict[str, str]) -> str:
         _safe(search_swiperx(kw,  max_results=5), "SwipeRx"),
     )
 
+    # ── DB 적재 & 캐시 폴백 ───────────────────────────────────────────────────
+    def _has_valid(r: Any) -> bool:
+        return isinstance(r, list) and any(
+            rec.get("product_name") and not rec.get("error") for rec in r
+        )
+
+    def _save_or_fallback(result: Any, source_key: str) -> Any:
+        """유효 데이터 → DB 저장 후 원본 반환.
+        빈/에러 → DB 캐시 폴백 (7일).
+        """
+        if _has_valid(result):
+            valid = [r for r in result if r.get("product_name") and not r.get("error")]
+            try:
+                save_crawl_results(product_id, source_key, valid, kw)
+            except Exception:
+                pass   # DB 저장 실패해도 분석은 계속 진행
+            return result
+        # 폴백: DB 캐시
+        cached = fetch_crawl_cache(product_id, source_key, max_age_hours=168)
+        if cached:
+            return _db_rows_to_crawl(source_key, cached)
+        return result   # 캐시도 없으면 원본 에러 반환
+
+    bpom_r   = _save_or_fallback(bpom_r,   "ID:bpom")
+    ek_r     = _save_or_fallback(ek_r,     "ID:ekatalog")
+    fornas_r = _save_or_fallback(fornas_r, "ID:fornas")
+    mims_r   = _save_or_fallback(mims_r,   "ID:mims")
+    k24_r    = _save_or_fallback(k24_r,    "ID:k24klik")
+    swrx_r   = _save_or_fallback(swrx_r,   "ID:swiperx")
+
+    # ── 2차 검색: MIMS 브랜드명 → BPOM·K24Klik 보강 ─────────────────────────
+    # MIMS는 인도네시아 내 등록 브랜드 목록을 반환한다.
+    # INN 검색만으로는 BPOM에서 브랜드 제품이 누락되고 K24Klik도 1건만 나오는
+    # 문제를 MIMS 브랜드명 → 2차 검색으로 해결한다.
+    _mims_brands: list[str] = []
+    if isinstance(mims_r, list):
+        seen_k24 = {
+            (r.get("product_name") or "").lower()
+            for r in (k24_r if isinstance(k24_r, list) else [])
+            if r.get("product_name")
+        }
+        seen_bpom = {
+            (r.get("product_name") or "").lower()
+            for r in (bpom_r if isinstance(bpom_r, list) else [])
+            if r.get("product_name")
+        }
+        for m in mims_r:
+            brand = (m.get("product_name") or "").strip()
+            if not brand or m.get("error"):
+                continue
+            _mims_brands.append(brand)
+
+        if _mims_brands:
+            # BPOM 2차: 브랜드별 인허가 상태 조회 (아직 없는 것만)
+            bpom_extra: list[dict[str, Any]] = []
+            for brand in _mims_brands[:6]:          # 최대 6개 브랜드
+                if brand.lower() in seen_bpom:
+                    continue
+                extra = await _safe(search_bpom(brand, max_results=2), f"BPOM/{brand}")
+                if isinstance(extra, list):
+                    valid_extra = [
+                        x for x in extra
+                        if x.get("product_name") and not x.get("error")
+                    ]
+                    bpom_extra.extend(valid_extra)
+                    if valid_extra:
+                        try:
+                            save_crawl_results(product_id, "ID:bpom", valid_extra, brand)
+                        except Exception:
+                            pass
+            if bpom_extra:
+                bpom_r = (bpom_r if isinstance(bpom_r, list) else []) + bpom_extra
+
+            # K24Klik 2차: 브랜드별 소매가 조회 (아직 없는 것만)
+            k24_extra: list[dict[str, Any]] = []
+            for brand in _mims_brands[:6]:
+                if brand.lower() in seen_k24:
+                    continue
+                extra = await _safe(search_k24klik(brand, max_results=2), f"K24/{brand}")
+                if isinstance(extra, list):
+                    valid_extra = [
+                        x for x in extra
+                        if x.get("product_name") and not x.get("error")
+                    ]
+                    k24_extra.extend(valid_extra)
+                    if valid_extra:
+                        try:
+                            save_crawl_results(product_id, "ID:k24klik", valid_extra, brand)
+                        except Exception:
+                            pass
+            if k24_extra:
+                k24_r = (k24_r if isinstance(k24_r, list) else []) + k24_extra
+
+    # ── 컨텍스트 문자열 빌드 ────────────────────────────────────────────────────
     lines: list[str] = []
+
+    def _fmt_idr(val: object, unit: str = "") -> str:
+        """숫자를 'Rp XX,XXX/unit' 형태로 포맷. 불명확하면 '가격 미상' 반환."""
+        if isinstance(val, (int, float)) and val > 0:
+            return f"Rp {int(val):,}{('/' + unit) if unit else ''}"
+        return "가격 미상"
+
+    def _cache_tag(rlist: list) -> str:
+        """캐시 데이터인 경우 '(DB캐시)' 태그 반환."""
+        if rlist and rlist[0].get("_from_cache"):
+            ts = (rlist[0].get("_cached_at") or "")[:10]
+            return f" [DB캐시 {ts}]"
+        return ""
 
     # ── BPOM 등록 현황 ─────────────────────────────────────────────────────────
     if isinstance(bpom_r, list):
         real = [r for r in bpom_r if r.get("product_name") and not r.get("error")]
         if real:
-            lines.append("=== BPOM 등록 현황 ===")
+            lines.append(f"=== BPOM 등록 현황 (NIE 보유 제품){_cache_tag(real)} ===")
             for r in real:
-                mfr = r.get("manufacturer") or r.get("registrar") or ""
+                mfr      = r.get("manufacturer") or r.get("registrar") or "미상"
+                reg_type = r.get("reg_type") or ("ML" if "import" in mfr.lower() else "")
+                exp_date = r.get("expiry_date") or r.get("exp_date") or ""
                 lines.append(
-                    f"• {r.get('product_name','')} | 등록번호: {r.get('reg_no','')} "
-                    f"| 제조사: {mfr} | 제형: {r.get('dosage_form','')} "
-                    f"| 상태: {r.get('status','')} | ATC: {r.get('atc_code','')}"
+                    f"• {r.get('product_name','')} "
+                    f"| NIE: {r.get('reg_no', r.get('nie','미상'))} "
+                    f"| 유형: {reg_type or '미상'} "
+                    f"| 제형: {r.get('dosage_form','')} "
+                    f"| 제조/등록사: {mfr} "
+                    f"| 상태: {r.get('status','활성')} "
+                    f"| 유효기간: {exp_date or '미상'} "
+                    f"| ATC: {r.get('atc_code','')}"
                 )
         else:
-            lines.append(f"[BPOM] {kw}: 등록 제품 없음 (신규 ML 등록 필요)")
+            lines.append(
+                f"[BPOM] '{kw}' 관련 NIE 등록 제품 없음 "
+                "→ 한국유나이티드제약 신규 ML 코드 등록 필요. 통상 12~24개월 소요."
+            )
     else:
         lines.append(f"[BPOM 크롤링 실패: {bpom_r}]")
 
-    # ── e-Katalog 조달가 ───────────────────────────────────────────────────────
+    # ── e-Katalog 공공조달가 ───────────────────────────────────────────────────
     if isinstance(ek_r, list):
         real = [r for r in ek_r if r.get("product_name") and not r.get("error")]
         if real:
-            lines.append("=== e-Katalog 공공조달가 ===")
+            lines.append(f"=== e-Katalog LKPP 공공조달가{_cache_tag(real)} ===")
             for r in real:
-                price = r.get("price_idr")
-                ps = f"Rp {price:,}" if isinstance(price, (int, float)) and price else "가격 미상"
+                price_str = _fmt_idr(r.get("price_idr"), r.get("satuan", "단위"))
+                het_str   = _fmt_idr(r.get("het_idr"), r.get("satuan", "단위")) if r.get("het_idr") else ""
                 lines.append(
-                    f"• {r.get('product_name','')} | {ps} "
-                    f"| 공급사: {r.get('supplier','')} | 단위: {r.get('satuan','')}"
+                    f"• {r.get('product_name','')} "
+                    f"| 조달가: {price_str} "
+                    f"| HET: {het_str or '미상'} "
+                    f"| 공급사: {r.get('supplier', r.get('manufacturer','미상'))} "
+                    f"| 단위: {r.get('satuan','')} "
+                    f"| 연도: {r.get('year', r.get('tahun',''))}"
                 )
         else:
-            lines.append(f"[e-Katalog] {kw}: 조달 등록 없음 (e-Katalog 신규 등록 전략 필요)")
+            lines.append(
+                f"[e-Katalog] '{kw}' 조달 등록 없음 "
+                "→ BPOM ML 취득 후 LKPP e-Katalog 등록 필요 (FORNAS 등재 선행 권장)."
+            )
     else:
         lines.append(f"[e-Katalog 크롤링 실패: {ek_r}]")
 
-    # ── FORNAS 국가처방집 ─────────────────────────────────────────────────────
+    # ── FORNAS 국가처방집 등재 현황 ──────────────────────────────────────────────
     if isinstance(fornas_r, list):
-        real = [r for r in fornas_r if r.get("inn") or r.get("product_name") and not r.get("error")]
+        real = [r for r in fornas_r if (r.get("inn") or r.get("product_name")) and not r.get("error")]
         if real:
-            lines.append("=== FORNAS 국가처방집 등재 ===")
+            lines.append(f"=== FORNAS 국가처방집 등재 현황{_cache_tag(real)} ===")
             for r in real:
-                if r.get("error"):
-                    continue
-                name = r.get("inn") or r.get("product_name") or ""
+                name  = r.get("inn") or r.get("product_name") or ""
+                tier  = r.get("fornas_class") or r.get("tingkat") or r.get("level") or "미상"
+                restr = r.get("restriction") or r.get("pembatasan") or "없음"
                 lines.append(
-                    f"• {name} | {r.get('strength','')} | {r.get('dosage_form','')} "
-                    f"| 제한: {r.get('restriction') or '없음'} | 분류: {r.get('fornas_class','')}"
+                    f"• {name} "
+                    f"| 규격: {r.get('strength','')} "
+                    f"| 제형: {r.get('dosage_form','')} "
+                    f"| FORNAS 분류: {tier} "
+                    f"| 급여 제한: {restr} "
+                    f"| 적응증: {r.get('indication','')}"
                 )
         else:
-            lines.append(f"[FORNAS] {kw}: 국가처방집 미등재 — JKN 급여 진입 위한 FORNAS 등재 전략 필요")
+            lines.append(
+                f"[FORNAS] '{kw}' 국가처방집 미등재 "
+                "→ JKN(BPJS-Kesehatan) 급여 접근 불가. FORNAS 등재 전략 필수."
+            )
     else:
         lines.append(f"[FORNAS 크롤링 실패: {fornas_r}]")
 
-    # ── MIMS 경쟁 제품 ────────────────────────────────────────────────────────
+    # ── MIMS Indonesia 경쟁 제품 ──────────────────────────────────────────────
     if isinstance(mims_r, list):
         real = [r for r in mims_r if r.get("product_name") and not r.get("error")]
         if real:
-            lines.append("=== MIMS Indonesia 경쟁 제품 ===")
+            lines.append(f"=== MIMS Indonesia 경쟁 제품 (상위 {min(len(real), 5)}개){_cache_tag(real)} ===")
             for r in real[:5]:
+                rx_otc    = r.get("drug_type") or r.get("prescription_type") or ""
+                mfr       = r.get("manufacturer") or r.get("company") or "미상"
+                price_str = _fmt_idr(r.get("price_idr"))
                 lines.append(
-                    f"• {r.get('product_name','')} [{r.get('drug_type','')}] "
-                    f"| 성분: {r.get('inn','')} | MIMS 분류: {r.get('mims_class','')} "
-                    f"| 제조사: {r.get('manufacturer','')}"
+                    f"• {r.get('product_name','')} "
+                    f"| {rx_otc} "
+                    f"| 성분: {r.get('inn','')} "
+                    f"| MIMS 분류: {r.get('mims_class','')} "
+                    f"| 제조사: {mfr} "
+                    f"| 가격: {price_str}"
                 )
         else:
-            lines.append(f"[MIMS] {kw}: 검색 결과 없음")
+            lines.append(f"[MIMS] '{kw}': 검색 결과 없음 — 경쟁 제품 현지 미입점 가능성")
     else:
         lines.append(f"[MIMS 크롤링 실패: {mims_r}]")
 
-    # ── K24Klik 소매가 ────────────────────────────────────────────────────────
+    # ── K24Klik 온라인 약국 소매가 ────────────────────────────────────────────
     if isinstance(k24_r, list):
         real = [r for r in k24_r if r.get("product_name") and not r.get("error")]
         if real:
-            lines.append("=== K24Klik 온라인 약국 소매가 ===")
+            lines.append(f"=== K24Klik 온라인 약국 소매가{_cache_tag(real)} ===")
             for r in real[:5]:
-                price = r.get("price_idr")
-                ps = f"Rp {price:,}{r.get('price_unit','')}" if isinstance(price, (int, float)) and price else "가격 미상"
-                lines.append(f"• {r.get('product_name','')} | {ps}")
+                unit      = r.get("price_unit") or r.get("satuan") or "단위"
+                price_str = _fmt_idr(r.get("price_idr"), unit)
+                lines.append(
+                    f"• {r.get('product_name','')} "
+                    f"| 소매가: {price_str} "
+                    f"| 제조사: {r.get('manufacturer','미상')} "
+                    f"| 재고: {r.get('stock_status','미상')}"
+                )
         else:
-            lines.append(f"[K24Klik] {kw}: 검색 결과 없음")
+            lines.append(f"[K24Klik] '{kw}': 민간 온라인 약국 미입점 — 소매가 데이터 없음")
     else:
         lines.append(f"[K24Klik 크롤링 실패: {k24_r}]")
 
@@ -395,23 +734,91 @@ async def _fetch_crawl_context(meta: dict[str, str]) -> str:
     if isinstance(swrx_r, list):
         real = [r for r in swrx_r if r.get("product_name") and not r.get("error")]
         if real:
-            lines.append("=== SwipeRx B2B 도매가 ===")
+            lines.append(f"=== SwipeRx B2B 도매가 (약국·병원 대상){_cache_tag(real)} ===")
             for r in real[:5]:
-                price = r.get("price_idr")
-                ps = f"Rp {price:,}" if isinstance(price, (int, float)) and price else "가격 미상"
+                price_str = _fmt_idr(r.get("price_idr"))
                 lines.append(
-                    f"• {r.get('product_name','')} | {ps} "
-                    f"| 제조사: {r.get('manufacturer','')} | 카테고리: {r.get('category','')}"
+                    f"• {r.get('product_name','')} "
+                    f"| B2B 도매가: {price_str} "
+                    f"| 제조사: {r.get('manufacturer','미상')} "
+                    f"| 카테고리: {r.get('category','')} "
+                    f"| 포장단위: {r.get('pack_size','')}"
                 )
         else:
-            lines.append(f"[SwipeRx] {kw}: 검색 결과 없음 (B2B 로그인 필요 가능성)")
+            lines.append(f"[SwipeRx] '{kw}': B2B 미등록 또는 로그인 필요")
     else:
         lines.append(f"[SwipeRx 크롤링 실패: {swrx_r}]")
+
+    # ── 데이터 품질 요약 ───────────────────────────────────────────────────────
+    def _count_valid(r: Any, key: str = "product_name") -> bool:
+        return isinstance(r, list) and bool(
+            [x for x in r if (x.get(key) or x.get("product_name")) and not x.get("error")]
+        )
+
+    sources_ok = sum([
+        _count_valid(bpom_r),
+        _count_valid(ek_r),
+        _count_valid(fornas_r, "inn"),
+        _count_valid(mims_r),
+        _count_valid(k24_r),
+        _count_valid(swrx_r),
+    ])
+    from_cache = sum([
+        isinstance(bpom_r,   list) and bool(bpom_r)   and bpom_r[0].get("_from_cache",   False),
+        isinstance(ek_r,     list) and bool(ek_r)     and ek_r[0].get("_from_cache",     False),
+        isinstance(fornas_r, list) and bool(fornas_r) and fornas_r[0].get("_from_cache", False),
+        isinstance(mims_r,   list) and bool(mims_r)   and mims_r[0].get("_from_cache",   False),
+        isinstance(k24_r,    list) and bool(k24_r)    and k24_r[0].get("_from_cache",    False),
+        isinstance(swrx_r,   list) and bool(swrx_r)   and swrx_r[0].get("_from_cache",   False),
+    ])
+    lines.append(
+        f"\n[크롤링 데이터 품질] 유효 데이터: {sources_ok}/6 소스 "
+        f"(실시간 {sources_ok - from_cache}개 + DB캐시 {from_cache}개) "
+        f"(BPOM/e-Katalog/FORNAS/MIMS/K24Klik/SwipeRx)"
+    )
 
     return "\n".join(lines) if lines else ""
 
 
 # ── Claude 호출 ───────────────────────────────────────────────────────────────
+
+def _extract_json(raw: str) -> dict[str, Any] | None:
+    """응답 텍스트에서 JSON 객체를 추출합니다.
+    전략 1: 코드블록 내 JSON (```json ... ```)
+    전략 2: 중괄호 범위 추출 (가장 큰 { ... })
+    전략 3: raw 전체 파싱
+    """
+    import re
+
+    # 전략 1: ```json ... ``` 블록
+    m = re.search(r"```json\s*(\{.*?\})\s*```", raw, flags=re.S)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    # 전략 2: 가장 바깥 중괄호 범위 (중첩 대응)
+    start = raw.find("{")
+    if start != -1:
+        depth = 0
+        for i, ch in enumerate(raw[start:], start):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(raw[start : i + 1])
+                    except json.JSONDecodeError:
+                        break
+
+    # 전략 3: raw 전체
+    try:
+        return json.loads(raw.strip())
+    except json.JSONDecodeError:
+        return None
+
 
 async def _claude_analyze(
     meta: dict[str, str],
@@ -419,29 +826,40 @@ async def _claude_analyze(
     claude_key: str,
     model: str,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Claude API 호출 → JSON 파싱."""
-    try:
-        import anthropic  # type: ignore
+    """Claude API 호출 → JSON 파싱 (재시도 1회 포함)."""
+    import anthropic  # type: ignore
 
-        client = anthropic.AsyncAnthropic(api_key=claude_key)
-        msg = await client.messages.create(
-            model=model,
-            max_tokens=1800,
-            system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": _build_user_prompt(meta, crawl_context)}],
-        )
-        raw = msg.content[0].text.strip()
+    client = anthropic.AsyncAnthropic(api_key=claude_key)
+    user_prompt = _build_user_prompt(meta, crawl_context)
 
-        # JSON 블록 추출
-        import re
-        m = re.search(r"\{.*\}", raw, flags=re.S)
-        if m:
-            return json.loads(m.group(0)), None
-        return json.loads(raw), None
-    except json.JSONDecodeError as e:
-        return None, f"json_parse_error: {e}"
-    except Exception as e:
-        return None, f"claude_failed: {e}"
+    for attempt in range(2):
+        try:
+            msg = await client.messages.create(
+                model=model,
+                max_tokens=3500,          # 15개 필드 × 3~5문장 → 충분한 여유 확보
+                temperature=0.2 if attempt == 0 else 0.05,   # 재시도 시 결정론적
+                system=_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            raw = msg.content[0].text.strip()
+            parsed = _extract_json(raw)
+            if parsed is not None:
+                return parsed, None
+
+            # JSON 파싱 실패 — 재시도 전 잠깐 대기
+            if attempt == 0:
+                await asyncio.sleep(1)
+                continue
+
+            return None, f"json_parse_error: JSON 블록을 찾을 수 없습니다. 응답 앞부분: {raw[:200]}"
+
+        except Exception as e:
+            if attempt == 0:
+                await asyncio.sleep(2)
+                continue
+            return None, f"claude_failed: {e}"
+
+    return None, "claude_failed: 재시도 모두 실패"
 
 
 def _fallback_result(meta: dict[str, str], error: str | None) -> dict[str, Any]:

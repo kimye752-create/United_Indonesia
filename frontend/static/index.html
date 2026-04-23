@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>인도네시아 의약품 시장 분석 — Indonesia Pharma Export AI</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="/static/style.css?v=14"/>
+  <link rel="stylesheet" href="/static/style.css?v=15"/>
 </head>
 <body>
 <div class="app">
@@ -18,14 +18,12 @@
     </div>
   </div>
   <div class="topbar-r">
-    <!-- 상단 탭: 메인 프리뷰 먼저 (싱가포르 대시보드와 순서 통일) -->
-    <div class="topbar-tabs" id="topbar-tabs">
+    <nav class="topbar-nav" id="topbar-tabs">
       <button class="topbar-tab on" id="ttab-preview"  onclick="switchView('preview',this)">메인 프리뷰</button>
       <button class="topbar-tab"    id="ttab-analysis" onclick="switchView('analysis',this)">시장조사 분석</button>
-    </div>
-    <!-- 국가 뱃지: ID Indonesia 형식 (SG Singapore 통일) -->
+    </nav>
     <div class="pill">
-      <span class="pill-code">ID</span>
+      <img class="flag-img" src="https://flagcdn.com/id.svg" alt="ID">
       <span>Indonesia</span>
     </div>
   </div>
@@ -42,446 +40,514 @@
   <!-- ════ 메인 탭 컨테이너 ════ -->
   <div id="main" class="page on">
 
-    <!-- ── VIEW A: 메인 프리뷰 (기본 표시 — 싱가포르 대시보드와 통일) ── -->
+    <!-- ── VIEW A: 메인 프리뷰 ── -->
     <div id="view-preview">
+      <div class="preview-page">
 
-    <!-- SECTION A: 거시적 지표 4카드 -->
-    <div class="macro-grid" id="macro-grid-section">
-      <div class="macro-card">
-        <div class="macro-label">1인당 GDP</div>
-        <div class="macro-value" id="macro-gdp">—</div>
-        <div class="macro-source" id="macro-gdp-src">—</div>
-      </div>
-      <div class="macro-card">
-        <div class="macro-label">인구</div>
-        <div class="macro-value" id="macro-pop">—</div>
-        <div class="macro-source" id="macro-pop-src">—</div>
-      </div>
-      <div class="macro-card">
-        <div class="macro-label">의약품 시장 규모</div>
-        <div class="macro-value" id="macro-pharma">—</div>
-        <div class="macro-source" id="macro-pharma-src">—</div>
-      </div>
-      <div class="macro-card">
-        <div class="macro-label">의약품 수입 의존도</div>
-        <div class="macro-value" id="macro-import">—</div>
-        <div class="macro-source" id="macro-import-src">—</div>
-      </div>
-    </div>
-    <!-- 거시지표 출처 -->
-    <div class="macro-footnote" id="macro-footnote"></div>
+        <!-- 거시지표 4카드 -->
+        <div class="preview-stats-row">
+          <div class="preview-stat-card">
+            <div class="psc-label">1인당 GDP</div>
+            <div class="psc-value" id="macro-gdp">—</div>
+            <div class="psc-source" id="macro-gdp-src">—</div>
+          </div>
+          <div class="preview-stat-card">
+            <div class="psc-label">인구</div>
+            <div class="psc-value" id="macro-pop">—</div>
+            <div class="psc-source" id="macro-pop-src">—</div>
+          </div>
+          <div class="preview-stat-card">
+            <div class="psc-label">의약품 시장 규모</div>
+            <div class="psc-value" id="macro-pharma">—</div>
+            <div class="psc-source" id="macro-pharma-src">—</div>
+          </div>
+          <div class="preview-stat-card">
+            <div class="psc-label">의약품 수입 의존도</div>
+            <div class="psc-value" id="macro-import">—</div>
+            <div class="psc-source" id="macro-import-src">—</div>
+          </div>
+        </div>
+        <div class="macro-footnote" id="macro-footnote"></div>
 
-    <!-- SECTION B: Leaflet 지도 + 뉴스 -->
-    <div class="map-news-grid" id="map-news-section">
-      <article class="card map-card-wrap">
-        <div class="sec" style="margin-bottom:10px;">
-          <h3>인도네시아 위치</h3>
+        <!-- 지도 + 뉴스 -->
+        <div class="preview-bottom-row">
+          <div class="preview-map-block">
+            <div class="pvblock-header">인도네시아 위치</div>
+            <div id="id-map" style="flex:1;min-height:0;z-index:0;"></div>
+          </div>
+          <div class="preview-news-block">
+            <div class="pvblock-header">
+              <span>인도네시아 의약품 시장 주요 동향</span>
+              <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">↺ 새로고침</button>
+            </div>
+            <div id="news-list" class="preview-news-list"></div>
+          </div>
         </div>
-        <div id="id-map" class="sg-leaflet-map"></div>
-      </article>
-      <article class="card">
-        <div class="sec">
-          <h3>인도네시아 의약품 시장 주요 동향</h3>
-          <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">↺</button>
-        </div>
-        <div id="news-list">
-          <div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:16px 0;">뉴스 로드 중…</div>
-        </div>
-      </article>
-    </div>
 
+      </div>
     </div><!-- /view-preview -->
 
-    <!-- ── VIEW B: 시장조사 분석 (기본 숨김 — 탭 전환 시 표시) ── -->
+    <!-- ── VIEW B: 시장조사 분석 ── -->
     <div id="view-analysis" style="display:none;">
+      <div class="dashboard-grid">
 
-    <!-- ════ 2컬럼 블록: 01 수출가격 전략 | 02 바이어 발굴 ════ -->
-    <div class="two-col-blocks">
-
-      <!-- ────── 01 수출가격 전략 ────── -->
-      <div class="block-card">
-        <div class="block-hd">
-          <div class="block-hd-l">
-            <span class="process-num">01</span>
-            <div>
-              <div class="block-title">수출가격 전략</div>
-              <div class="block-sub">제품 분석 · Claude AI · PDF 보고서 자동 생성</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 품목 선택 + 분석 실행 -->
-        <div class="selector-row" style="margin-bottom:6px;">
-          <select id="product-select" style="flex:1;">
-            <option value="ID_sereterol_activair">[개량신약] Sereterol Activair · fluticasone+salmeterol DPI</option>
-            <option value="ID_omethyl_omega3_2g">[개량신약] Omethyl Cutielet · omega-3 ethyl esters 90, 2g</option>
-            <option value="ID_hydrine_hydroxyurea_500">[개량신약] Hydrine · hydroxyurea 500mg</option>
-            <option value="ID_gadvoa_gadobutrol_604">[개량신약] Gadvoa Inj. · gadobutrol 604.72mg/7.5mL</option>
-            <option value="ID_rosumeg_combigel">[개량신약] Rosumeg Combigel · rosuvastatin+omega-3 CombiGel®</option>
-            <option value="ID_atmeg_combigel">[개량신약] Atmeg Combigel · atorvastatin+omega-3 CombiGel®</option>
-            <option value="ID_ciloduo_cilosta_rosuva">[개량신약] Ciloduo · cilostazol+rosuvastatin CombiGel®</option>
-            <option value="ID_gastiin_cr_mosapride">[개량신약] Gastiin CR · mosapride citrate 15mg SR</option>
-          </select>
-          <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
-            <span id="btn-icon">▶</span> 분석 실행
-          </button>
-        </div>
-
-        <!-- 시장조사 진행 상태 -->
-        <div class="progress-row" id="progress-row">
-          <div class="prog-step" id="prog-db_load"><div class="prog-dot">1</div><div class="prog-label">DB 조회</div></div>
-          <div class="prog-step" id="prog-analyze"><div class="prog-dot">2</div><div class="prog-label">Claude 분석</div></div>
-          <div class="prog-step" id="prog-refs"><div class="prog-dot">3</div><div class="prog-label">논문 검색</div></div>
-          <div class="prog-step" id="prog-report"><div class="prog-dot">4</div><div class="prog-label">PDF 생성</div></div>
-        </div>
-
-        <!-- 완료 배너 + P1 DOCX 다운로드 -->
-        <div class="p1-result-note" id="p1-result-note" style="display:none;"></div>
-        <div id="p1-docx-row" style="display:none;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">
-            📄 시장조사 보고서 DOCX
-          </button>
-          <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')" style="background:var(--accent,#e74c3c);">
-            📑 시장조사 보고서 PDF (₩KRW)
-          </button>
-        </div>
-
-        <!-- 신약 직접 분석 (접기/펼치기) -->
-        <div style="margin:8px 0 4px;">
-          <a class="custom-toggle-link" onclick="toggleCustomForm(this)">▸ 신약 직접 분석</a>
-          <div id="custom-form-body" style="display:none;margin-top:8px;">
-            <div class="custom-form">
-              <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
-              <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
-              <input type="text" id="custom-dosage"     class="custom-input" placeholder="제형 (예: 200mg tablet)">
-              <button class="btn-analyze" id="btn-custom" onclick="runCustomPipeline()">
-                <span id="custom-icon">▶</span> 신약 분석
-              </button>
-            </div>
-            <div class="progress-row" id="custom-progress-row">
-              <div class="prog-step" id="cprog-analyze"><div class="prog-dot">1</div><div class="prog-label">Claude 분석</div></div>
-              <div class="prog-step" id="cprog-refs"><div class="prog-dot">2</div><div class="prog-label">논문 검색</div></div>
-              <div class="prog-step" id="cprog-report"><div class="prog-dot">3</div><div class="prog-label">PDF 생성</div></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="block-divider"></div>
-
-        <!-- 품목 선택 (보고서 기반) -->
-        <div class="selector-label" style="margin-bottom:6px;">품목 선택</div>
-        <div class="selector-row" style="margin-bottom:8px;">
-          <select id="p2-ai-report-select" style="flex:1;">
-            <option value="">저장된 분석 보고서를 선택하세요.</option>
-          </select>
-        </div>
-
-        <!-- 공공/민간 + AI 가격 분석 실행 -->
-        <div class="p2-seg-run-row">
-          <div class="p2-seg-row" style="margin-bottom:0;">
-            <span class="p2-dual-badge">🏛 공공 + 🏪 민간 동시 분석</span>
-          </div>
-          <button class="btn-analyze" id="btn-p2-ai-run" type="button" onclick="runP2AiPipeline()">
-            <span id="p2-ai-run-icon">▶</span> AI 가격 분석 실행
-          </button>
-        </div>
-        <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:4px;font-size:11px;color:var(--muted);">AI가 공공(e-Katalog·BPJS)·민간(병원·약국·체인) 두 채널 각 3개 시나리오를 동시에 산출합니다.</div>
-        <!-- 공공/민간 주의사항 -->
-        <div class="p2-warning-pubpriv">
-          ⚠ <strong>공공·민간 채널 가격 비교 시 주의</strong> — 인도네시아에서는
-          <span class="tt" data-tip="e-Katalog(LKPP) 입찰 조달가&#10;공공병원·BPJS 급여 채널 적용">공공 조달가</span>가
-          <span class="tt" data-tip="Halodoc·K24Klik·민간병원 등&#10;소매·도매 유통 채널 적용">민간 채널가</span>보다
-          높게 산정되는 경우가 있습니다.
-          이는 <span class="tt" data-tip="Jaminan Kesehatan Nasional&#10;인도네시아 국민건강보험 (BPJS 운영)">JKN</span> 급여 목록
-          등재 여부 및 정부 조달 마진 구조 차이에 기인합니다.
-        </div>
-
-        <!-- 가격 분석 진행 -->
-        <div class="progress-row" id="p2-progress-row">
-          <div class="prog-step" id="p2prog-extract"><div class="prog-dot">1</div><div class="prog-label">PDF 추출</div></div>
-          <div class="prog-step" id="p2prog-ai_extract"><div class="prog-dot">2</div><div class="prog-label">가격 추출</div></div>
-          <div class="prog-step" id="p2prog-ai_analysis"><div class="prog-dot">3</div><div class="prog-label">AI 분석</div></div>
-          <div class="prog-step" id="p2prog-report"><div class="prog-dot">4</div><div class="prog-label">보고서 생성</div></div>
-        </div>
-        <div id="p2-ai-error-msg" class="p2-note" style="display:none;color:var(--red);"></div>
-
-        <!-- 공공·민간 이중 시장 가격 카드 -->
-        <div id="p2-ai-result-section" style="display:none;">
-
-          <!-- 공공 시장 블록 -->
-          <div class="p2-market-block">
-            <div class="p2-market-title">
-              <span class="p2-market-icon">🏛</span>
-              <span class="p2-market-name">공공 시장</span>
-              <span class="p2-market-sub" id="p2-market-note-public">e-Katalog · BPJS-Kesehatan</span>
-            </div>
-            <div class="p2-three-col">
-              <div class="p2-col p2-col--agg" onclick="openFobModal('public','agg')">
-                <div class="p2-col-label">저가 진입</div>
-                <div class="p2-col-price" id="p2c-price-public-agg">—</div>
-                <div class="p2-col-currency">IDR</div>
-                <div class="p2-col-sub" id="p2c-sub-public-agg">— USD</div>
-                <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-agg">—</span></div>
-                <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
-              </div>
-              <div class="p2-col p2-col--avg" onclick="openFobModal('public','avg')">
-                <div class="p2-col-label">기준</div>
-                <div class="p2-col-price" id="p2c-price-public-avg">—</div>
-                <div class="p2-col-currency">IDR</div>
-                <div class="p2-col-sub" id="p2c-sub-public-avg">— USD</div>
-                <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-avg">—</span></div>
-                <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
-              </div>
-              <div class="p2-col p2-col--cons" onclick="openFobModal('public','cons')">
-                <div class="p2-col-label">프리미엄</div>
-                <div class="p2-col-price" id="p2c-price-public-cons">—</div>
-                <div class="p2-col-currency">IDR</div>
-                <div class="p2-col-sub" id="p2c-sub-public-cons">— USD</div>
-                <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-cons">—</span></div>
-                <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 민간 시장 블록 -->
-          <div class="p2-market-block">
-            <div class="p2-market-title">
-              <span class="p2-market-icon">🏪</span>
-              <span class="p2-market-name">민간 시장</span>
-              <span class="p2-market-sub" id="p2-market-note-private">병원 · 약국 · 체인 채널</span>
-            </div>
-            <div class="p2-three-col">
-              <div class="p2-col p2-col--agg" onclick="openFobModal('private','agg')">
-                <div class="p2-col-label">저가 진입</div>
-                <div class="p2-col-price" id="p2c-price-private-agg">—</div>
-                <div class="p2-col-currency">IDR</div>
-                <div class="p2-col-sub" id="p2c-sub-private-agg">— USD</div>
-                <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-agg">—</span></div>
-                <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
-              </div>
-              <div class="p2-col p2-col--avg" onclick="openFobModal('private','avg')">
-                <div class="p2-col-label">기준</div>
-                <div class="p2-col-price" id="p2c-price-private-avg">—</div>
-                <div class="p2-col-currency">IDR</div>
-                <div class="p2-col-sub" id="p2c-sub-private-avg">— USD</div>
-                <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-avg">—</span></div>
-                <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
-              </div>
-              <div class="p2-col p2-col--cons" onclick="openFobModal('private','cons')">
-                <div class="p2-col-label">프리미엄</div>
-                <div class="p2-col-price" id="p2c-price-private-cons">—</div>
-                <div class="p2-col-currency">IDR</div>
-                <div class="p2-col-sub" id="p2c-sub-private-cons">— USD</div>
-                <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-cons">—</span></div>
-                <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 가격 면책 문구 -->
-          <div class="p2-disclaimer">
-            <strong>※ 참고 가격 안내</strong> —
-            FOB 기준 AI 분석 참고값입니다.
-            실제 입찰·계약 가격과 상이할 수 있으며, BPOM 등록 상태, FORNAS 등재 여부, 현지 파트너 조건에 따라 변동됩니다.
-            카드를 클릭하면 FOB 역산 요소를 직접 편집할 수 있습니다.
-          </div>
-
-          <div style="margin-top:10px;">
-            <div id="p2-product-list"></div>
-            <div id="p2-report-dl-state" style="margin-top:12px;"></div>
-            <div id="p2-docx-row" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn-docx-dl" id="btn-p2-docx" onclick="downloadDocxReport('p2')">
-                📄 가격전략 보고서 DOCX
-              </button>
-              <button class="btn-docx-dl" id="btn-p2-pdf" onclick="downloadPdfReport('p2')" style="background:var(--accent,#e74c3c);">
-                📑 가격전략 보고서 PDF (₩KRW)
-              </button>
-            </div>
-          </div>
-        </div><!-- /p2-ai-result-section -->
-
-        <!-- FOB 역산 편집 모달 -->
-        <div id="fob-modal-overlay" class="fob-modal-overlay" onclick="closeFobModal(event)" style="display:none;">
-          <div class="fob-modal" onclick="event.stopPropagation()">
-            <div class="fob-modal-header">
-              <span id="fob-modal-title">FOB 역산 편집</span>
-              <button class="fob-modal-close" onclick="closeFobModal()">✕</button>
-            </div>
-            <div class="fob-modal-body">
-              <div class="fob-info-row">
-                <div class="fob-info-cell">
-                  <div class="fob-info-label">보고서 가격</div>
-                  <div class="fob-info-val" id="fob-report-price">—</div>
-                </div>
-                <div class="fob-info-cell">
-                  <div class="fob-info-label">기준가 (IDR)</div>
-                  <input class="fob-base-input" type="number" id="fob-base-input" step="1000" min="0" oninput="recalcFobModal()">
+        <!-- ── 왼쪽: 수출가격 전략 ── -->
+        <div class="col-left">
+          <div class="process-section">
+            <div class="process-header">
+              <div class="process-header-l">
+                <span class="process-num">01</span>
+                <div>
+                  <div class="process-title">수출가격 전략</div>
+                  <div class="process-sub">제품 분석 · Claude AI · PDF 보고서 자동 생성</div>
                 </div>
               </div>
-              <div class="fob-factors-header">
-                <span>역산 요소</span>
-                <span class="fob-factors-hint">AI 추천값 — 수정·삭제·추가 가능</span>
+            </div>
+            <div class="process-body" id="pb-p2">
+
+              <!-- 품목 선택 + 시장조사 실행 -->
+              <div class="selector-card" style="margin-bottom:10px;">
+                <div class="selector-row">
+                  <select id="product-select" style="flex:1;">
+                    <option value="ID_sereterol_activair">[개량신약] Sereterol Activair · fluticasone+salmeterol DPI</option>
+                    <option value="ID_omethyl_omega3_2g">[개량신약] Omethyl Cutielet · omega-3 ethyl esters 90, 2g</option>
+                    <option value="ID_hydrine_hydroxyurea_500">[개량신약] Hydrine · hydroxyurea 500mg</option>
+                    <option value="ID_gadvoa_gadobutrol_604">[개량신약] Gadvoa Inj. · gadobutrol 604.72mg/7.5mL</option>
+                    <option value="ID_rosumeg_combigel">[개량신약] Rosumeg Combigel · rosuvastatin+omega-3 CombiGel®</option>
+                    <option value="ID_atmeg_combigel">[개량신약] Atmeg Combigel · atorvastatin+omega-3 CombiGel®</option>
+                    <option value="ID_ciloduo_cilosta_rosuva">[개량신약] Ciloduo · cilostazol+rosuvastatin CombiGel®</option>
+                    <option value="ID_gastiin_cr_mosapride">[개량신약] Gastiin CR · mosapride citrate 15mg SR</option>
+                  </select>
+                  <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
+                    <span id="btn-icon">▶</span> 시장 조사
+                  </button>
+                </div>
+                <div id="p1-loading-state" class="p1-simple-loading" style="display:none;">
+                  <span class="report-loading-spinner"></span>
+                  <span style="font-size:12px;color:var(--muted);">시장조사 분석 중…</span>
+                </div>
+                <div class="p1-result-note" id="p1-result-note" style="display:none;"></div>
+                <div id="p1-docx-row" style="display:none;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">
+                    📄 시장조사 보고서 DOCX
+                  </button>
+                  <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')" style="background:var(--accent,#e74c3c);">
+                    📑 시장조사 보고서 PDF (₩KRW)
+                  </button>
+                </div>
+                <div style="margin-top:8px;">
+                  <button class="btn-toggle-custom" onclick="toggleCustomForm(this)" type="button">▸ 신약 직접 분석</button>
+                </div>
+                <div id="custom-form-body" style="display:none;margin-top:10px;">
+                  <div class="custom-form">
+                    <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
+                    <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
+                    <input type="text" id="custom-dosage"     class="custom-input" placeholder="제형 (예: 200mg tablet)">
+                    <button class="btn-analyze" id="btn-custom" onclick="runCustomPipeline()">
+                      <span id="custom-icon">▶</span> 신약 분석
+                    </button>
+                  </div>
+                  <div id="custom-loading-state" class="p1-simple-loading" style="display:none;">
+                    <span class="report-loading-spinner"></span>
+                    <span style="font-size:12px;color:var(--muted);">신약 분석 중…</span>
+                  </div>
+                </div>
               </div>
-              <div id="fob-factors-list" class="fob-factors-list"></div>
-              <div id="fob-add-form" class="fob-add-form" style="display:none;">
-                <input type="text" placeholder="요소명" id="fob-new-name" maxlength="20" class="fob-new-input">
-                <select id="fob-new-type" class="fob-new-select">
-                  <option value="pct_deduct">% 차감</option>
-                  <option value="pct_add">% 가산</option>
-                  <option value="abs_deduct">IDR 차감</option>
-                  <option value="abs_add">IDR 가산</option>
-                </select>
-                <input type="number" placeholder="값" id="fob-new-val" step="0.1" min="0" class="fob-new-input fob-new-val">
-                <button class="fob-btn-confirm" onclick="confirmFobFactor()">✓ 추가</button>
-                <button class="fob-btn-cancel" onclick="cancelFobFactor()">취소</button>
+
+              <!-- AI 가격 산출 -->
+              <div class="selector-card">
+                <div class="selector-label" style="margin-bottom:6px;">품목 선택</div>
+                <div class="selector-row" style="margin-bottom:8px;">
+                  <select id="p2-ai-report-select" style="flex:1;">
+                    <option value="">저장된 분석 보고서를 선택하세요.</option>
+                  </select>
+                </div>
+                <div class="selector-row" style="flex-wrap:wrap;gap:10px;margin-bottom:0;">
+                  <div class="p2-seg-row" style="margin-bottom:0;flex:1;min-width:180px;">
+                    <button class="p2-seg-btn on" id="p2-ai-seg-public"  type="button" onclick="setP2AiSeg('public')">공공 시장</button>
+                    <button class="p2-seg-btn"    id="p2-ai-seg-private" type="button" onclick="setP2AiSeg('private')">민간 시장</button>
+                  </div>
+                  <button class="btn-analyze" id="btn-p2-ai-run" type="button" onclick="runP2AiPipeline()">
+                    <span id="p2-ai-run-icon">▶</span> AI 가격 산출
+                  </button>
+                </div>
+                <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:5px;font-size:11px;color:var(--muted);">AI가 공공(e-Katalog·BPJS)·민간(병원·약국·체인) 두 채널 각 3개 시나리오를 동시에 산출합니다.</div>
+                <!-- 공공/민간 주의사항 -->
+                <div class="p2-warning-pubpriv">
+                  ⚠ <strong>공공·민간 채널 가격 비교 시 주의</strong> — 인도네시아에서는
+                  <span class="tt" data-tip="e-Katalog(LKPP) 입찰 조달가&#10;공공병원·BPJS 급여 채널 적용">공공 조달가</span>가
+                  <span class="tt" data-tip="Halodoc·K24Klik·민간병원 등&#10;소매·도매 유통 채널 적용">민간 채널가</span>보다
+                  높게 산정되는 경우가 있습니다.
+                  이는 <span class="tt" data-tip="Jaminan Kesehatan Nasional&#10;인도네시아 국민건강보험 (BPJS 운영)">JKN</span> 급여 목록
+                  등재 여부 및 정부 조달 마진 구조 차이에 기인합니다.
+                </div>
+                <div id="p2-loading-state" class="p1-simple-loading" style="display:none;">
+                  <span class="report-loading-spinner"></span>
+                  <span id="p2-loading-label" style="font-size:12px;color:var(--muted);">가격 분석 중…</span>
+                </div>
+                <div id="p2-ai-error-msg" class="p2-note" style="display:none;color:var(--red);"></div>
               </div>
-              <button class="fob-btn-add" id="fob-btn-add" onclick="showFobAddForm()">+ 요소 추가</button>
-            </div>
-            <div class="fob-modal-result">
-              <div class="fob-result-label">FOB 계산 결과</div>
-              <div class="fob-result-val">
-                <span id="fob-result-idr">—</span>
-                <span class="fob-result-usd" id="fob-result-usd"></span>
+
+              <!-- 공공·민간 이중 시장 가격 카드 -->
+              <div id="p2-ai-result-section" style="display:none;">
+
+                <!-- 공공 시장 블록 -->
+                <div class="p2-market-block">
+                  <div class="p2-market-title">
+                    <span class="p2-market-icon">🏛</span>
+                    <span class="p2-market-name">공공 시장</span>
+                    <span class="p2-market-sub" id="p2-market-note-public">e-Katalog · BPJS-Kesehatan</span>
+                  </div>
+                  <div class="p2-three-col">
+                    <div class="p2-col p2-col--agg" onclick="openFobModal('public','agg')">
+                      <div class="p2-col-label">저가 진입</div>
+                      <div class="p2-col-price" id="p2c-price-public-agg">—</div>
+                      <div class="p2-col-currency">IDR</div>
+                      <div class="p2-col-sub" id="p2c-sub-public-agg">— USD</div>
+                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-agg">—</span></div>
+                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                    </div>
+                    <div class="p2-col p2-col--avg" onclick="openFobModal('public','avg')">
+                      <div class="p2-col-label">기준</div>
+                      <div class="p2-col-price" id="p2c-price-public-avg">—</div>
+                      <div class="p2-col-currency">IDR</div>
+                      <div class="p2-col-sub" id="p2c-sub-public-avg">— USD</div>
+                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-avg">—</span></div>
+                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                    </div>
+                    <div class="p2-col p2-col--cons" onclick="openFobModal('public','cons')">
+                      <div class="p2-col-label">프리미엄</div>
+                      <div class="p2-col-price" id="p2c-price-public-cons">—</div>
+                      <div class="p2-col-currency">IDR</div>
+                      <div class="p2-col-sub" id="p2c-sub-public-cons">— USD</div>
+                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-public-cons">—</span></div>
+                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 민간 시장 블록 -->
+                <div class="p2-market-block">
+                  <div class="p2-market-title">
+                    <span class="p2-market-icon">🏪</span>
+                    <span class="p2-market-name">민간 시장</span>
+                    <span class="p2-market-sub" id="p2-market-note-private">병원 · 약국 · 체인 채널</span>
+                  </div>
+                  <div class="p2-three-col">
+                    <div class="p2-col p2-col--agg" onclick="openFobModal('private','agg')">
+                      <div class="p2-col-label">저가 진입</div>
+                      <div class="p2-col-price" id="p2c-price-private-agg">—</div>
+                      <div class="p2-col-currency">IDR</div>
+                      <div class="p2-col-sub" id="p2c-sub-private-agg">— USD</div>
+                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-agg">—</span></div>
+                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                    </div>
+                    <div class="p2-col p2-col--avg" onclick="openFobModal('private','avg')">
+                      <div class="p2-col-label">기준</div>
+                      <div class="p2-col-price" id="p2c-price-private-avg">—</div>
+                      <div class="p2-col-currency">IDR</div>
+                      <div class="p2-col-sub" id="p2c-sub-private-avg">— USD</div>
+                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-avg">—</span></div>
+                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                    </div>
+                    <div class="p2-col p2-col--cons" onclick="openFobModal('private','cons')">
+                      <div class="p2-col-label">프리미엄</div>
+                      <div class="p2-col-price" id="p2c-price-private-cons">—</div>
+                      <div class="p2-col-currency">IDR</div>
+                      <div class="p2-col-sub" id="p2c-sub-private-cons">— USD</div>
+                      <div class="p2-col-fob-tag">FOB <span id="p2c-fob-private-cons">—</span></div>
+                      <div class="p2-col-edit-hint">클릭 → FOB 역산 편집</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 가격 면책 문구 -->
+                <div class="p2-disclaimer">
+                  <strong>※ 참고 가격 안내</strong> —
+                  FOB 기준 AI 분석 참고값입니다.
+                  실제 입찰·계약 가격과 상이할 수 있으며, BPOM 등록 상태, FORNAS 등재 여부, 현지 파트너 조건에 따라 변동됩니다.
+                  카드를 클릭하면 FOB 역산 요소를 직접 편집할 수 있습니다.
+                </div>
+
+                <div style="margin-top:10px;">
+                  <div id="p2-product-list"></div>
+                  <div id="p2-report-dl-state" style="margin-top:12px;"></div>
+                  <div id="p2-docx-row" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-docx-dl" id="btn-p2-docx" onclick="downloadDocxReport('p2')">
+                      📄 가격전략 보고서 DOCX
+                    </button>
+                    <button class="btn-docx-dl" id="btn-p2-pdf" onclick="downloadPdfReport('p2')" style="background:var(--accent,#e74c3c);">
+                      📑 가격전략 보고서 PDF (₩KRW)
+                    </button>
+                  </div>
+                </div>
+              </div><!-- /p2-ai-result-section -->
+
+              <!-- FOB 역산 편집 모달 -->
+              <div id="fob-modal-overlay" class="fob-modal-overlay" onclick="closeFobModal(event)" style="display:none;">
+                <div class="fob-modal" onclick="event.stopPropagation()">
+                  <div class="fob-modal-header">
+                    <span id="fob-modal-title">FOB 역산 편집</span>
+                    <button class="fob-modal-close" onclick="closeFobModal()">✕</button>
+                  </div>
+                  <div class="fob-modal-body">
+                    <div class="fob-info-row">
+                      <div class="fob-info-cell">
+                        <div class="fob-info-label">보고서 가격</div>
+                        <div class="fob-info-val" id="fob-report-price">—</div>
+                      </div>
+                      <div class="fob-info-cell">
+                        <div class="fob-info-label">기준가 (IDR)</div>
+                        <input class="fob-base-input" type="number" id="fob-base-input" step="1000" min="0" oninput="recalcFobModal()">
+                      </div>
+                    </div>
+                    <div class="fob-factors-header">
+                      <span>역산 요소</span>
+                      <span class="fob-factors-hint">AI 추천값 — 수정·삭제·추가 가능</span>
+                    </div>
+                    <div id="fob-factors-list" class="fob-factors-list"></div>
+                    <div id="fob-add-form" class="fob-add-form" style="display:none;">
+                      <input type="text" placeholder="요소명" id="fob-new-name" maxlength="20" class="fob-new-input">
+                      <select id="fob-new-type" class="fob-new-select">
+                        <option value="pct_deduct">% 차감</option>
+                        <option value="pct_add">% 가산</option>
+                        <option value="abs_deduct">IDR 차감</option>
+                        <option value="abs_add">IDR 가산</option>
+                      </select>
+                      <input type="number" placeholder="값" id="fob-new-val" step="0.1" min="0" class="fob-new-input fob-new-val">
+                      <button class="fob-btn-confirm" onclick="confirmFobFactor()">✓ 추가</button>
+                      <button class="fob-btn-cancel" onclick="cancelFobFactor()">취소</button>
+                    </div>
+                    <button class="fob-btn-add" id="fob-btn-add" onclick="showFobAddForm()">+ 요소 추가</button>
+                  </div>
+                  <div class="fob-modal-result">
+                    <div class="fob-result-label">FOB 계산 결과</div>
+                    <div class="fob-result-val">
+                      <span id="fob-result-idr">—</span>
+                      <span class="fob-result-usd" id="fob-result-usd"></span>
+                    </div>
+                    <div class="fob-result-formula" id="fob-result-formula"></div>
+                  </div>
+                  <div class="fob-modal-footer">
+                    <button class="fob-btn-reset" onclick="resetFobModal()">↩ 되돌리기</button>
+                    <button class="fob-btn-save" onclick="saveFobModal()">저장</button>
+                  </div>
+                </div>
               </div>
-              <div class="fob-result-formula" id="fob-result-formula"></div>
+
+              <!-- 분석 결과 카드 -->
+              <div class="result-card" id="result-card">
+                <div class="rs-block">
+                  <div class="card-title"><span class="card-title-dot"></span> 분석 결과</div>
+                  <div class="rs-product-row">
+                    <div class="rs-product-name" id="verdict-name"></div>
+                    <div class="rs-product-inn"  id="verdict-inn"></div>
+                  </div>
+                  <div class="rs-verdict-wrap">
+                    <div class="traffic-light">
+                      <div class="tl-lamp tl-red"    id="tl-red"></div>
+                      <div class="tl-lamp tl-yellow" id="tl-yellow"></div>
+                      <div class="tl-lamp tl-green"  id="tl-green"></div>
+                    </div>
+                    <div id="verdict-badge" class="verdict-badge v-none">미분석</div>
+                  </div>
+                </div>
+                <div class="rs-block">
+                  <div class="rs-block-label">판정 근거</div>
+                  <div class="basis-grid">
+                    <div class="basis-item">
+                      <div class="basis-label">시장·의학적 근거</div>
+                      <div class="basis-value" id="basis-market-medical"></div>
+                    </div>
+                    <div class="basis-item">
+                      <div class="basis-label">규제 현황 (BPOM)</div>
+                      <div class="basis-value" id="basis-regulatory"></div>
+                    </div>
+                    <div class="basis-item">
+                      <div class="basis-label">무역·유통</div>
+                      <div class="basis-value" id="basis-trade"></div>
+                    </div>
+                    <div class="basis-item">
+                      <div class="basis-label">참고 가격</div>
+                      <div class="pbs-price-block basis-value" id="basis-pbs-line"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="rs-block">
+                  <div class="rs-block-label">진입 전략</div>
+                  <div id="entry-pathway" class="entry-pathway"></div>
+                  <div class="rs-strategy-grid" style="margin-top:10px;">
+                    <div class="rs-strategy-item">
+                      <div class="rs-strategy-sub">가격 포지셔닝</div>
+                      <div id="price-positioning-pbs"></div>
+                    </div>
+                    <div class="rs-strategy-item" style="grid-column:1/-1;">
+                      <div class="rs-strategy-sub">리스크·조건</div>
+                      <div id="risks-conditions"></div>
+                    </div>
+                  </div>
+                  <button id="btn-reanalyze" class="btn-analyze"
+                          style="display:none;margin-top:10px;" onclick="runPipeline()">↺ 재분석</button>
+                </div>
+              </div>
+
+              <!-- 관련 논문 카드 -->
+              <div class="papers-card" id="papers-card">
+                <div class="card-title"><span class="card-title-dot"></span> 관련 논문</div>
+                <div id="papers-list"></div>
+              </div>
+
+              <!-- PDF 보고서 상태 카드 -->
+              <div class="report-card" id="report-card">
+                <div id="report-state-loading" style="display:none;">
+                  <span class="report-loading-spinner"></span><span>PDF 생성 중…</span>
+                </div>
+                <div id="report-state-ok" style="display:none;">
+                  <a class="btn-download" href="/api/report/download" target="_blank">📄 PDF 보고서 다운로드</a>
+                </div>
+                <div id="report-state-error" style="display:none;"></div>
+              </div>
+
+              <!-- JS 호환용 hidden 요소들 -->
+              <div style="display:none;" aria-hidden="true">
+                <div id="p2r-product-name"></div>
+                <div id="p2r-verdict-badge" class="verdict-badge v-none"></div>
+                <div id="p2r-ref-price-text"></div>
+                <div id="p2r-exchange"></div>
+                <div id="p2r-final-price"></div>
+                <div id="p2r-scenarios"></div>
+                <div id="p2r-rationale"></div>
+                <!-- old accordion targets (no-op) -->
+                <div id="pb-p1"></div>
+                <div id="pb-p3-old"></div>
+                <span id="pa-p1"></span>
+                <span id="pa-p2"></span>
+                <span id="pa-p3"></span>
+                <div id="p2-wrap"></div>
+                <div id="p3-linked-product">
+                  <span id="p3-product-label">—</span>
+                </div>
+                <!-- 진행 단계 (JS 참조용 — visible 클래스 추가 시 표시) -->
+                <div class="progress-row" id="progress-row">
+                  <div class="prog-step" id="prog-db_load"><div class="prog-dot">1</div><div class="prog-label">DB 조회</div></div>
+                  <div class="prog-step" id="prog-analyze"><div class="prog-dot">2</div><div class="prog-label">Claude 분석</div></div>
+                  <div class="prog-step" id="prog-refs"><div class="prog-dot">3</div><div class="prog-label">논문 검색</div></div>
+                  <div class="prog-step" id="prog-report"><div class="prog-dot">4</div><div class="prog-label">PDF 생성</div></div>
+                </div>
+                <div class="progress-row" id="custom-progress-row">
+                  <div class="prog-step" id="cprog-analyze"><div class="prog-dot">1</div><div class="prog-label">Claude 분석</div></div>
+                  <div class="prog-step" id="cprog-refs"><div class="prog-dot">2</div><div class="prog-label">논문 검색</div></div>
+                  <div class="prog-step" id="cprog-report"><div class="prog-dot">3</div><div class="prog-label">PDF 생성</div></div>
+                </div>
+                <div class="progress-row" id="p2-progress-row">
+                  <div class="prog-step" id="p2prog-extract"><div class="prog-dot">1</div><div class="prog-label">PDF 추출</div></div>
+                  <div class="prog-step" id="p2prog-ai_extract"><div class="prog-dot">2</div><div class="prog-label">가격 추출</div></div>
+                  <div class="prog-step" id="p2prog-ai_analysis"><div class="prog-dot">3</div><div class="prog-label">AI 분석</div></div>
+                  <div class="prog-step" id="p2prog-report"><div class="prog-dot">4</div><div class="prog-label">보고서 생성</div></div>
+                </div>
+              </div>
+
+            </div><!-- /process-body -->
+          </div><!-- /process-section -->
+        </div><!-- /col-left -->
+
+        <!-- ── 오른쪽: 바이어 발굴 ── -->
+        <div class="col-right">
+          <div class="process-section">
+            <div class="process-header">
+              <div class="process-header-l">
+                <span class="process-num">02</span>
+                <div>
+                  <div class="process-title">바이어 발굴</div>
+                </div>
+              </div>
+              <button class="btn-final-dl" id="btn-final-report" onclick="downloadBuyerReport()" disabled style="display:none;">
+                ↓ 최종 보고서 다운로드
+              </button>
             </div>
-            <div class="fob-modal-footer">
-              <button class="fob-btn-reset" onclick="resetFobModal()">↩ 되돌리기</button>
-              <button class="fob-btn-save" onclick="saveFobModal()">저장</button>
-            </div>
-          </div>
-        </div>
+            <div class="process-body" id="pb-p3">
 
-        <!-- JS 호환용 hidden 요소들 -->
-        <div style="display:none;" aria-hidden="true">
-          <div class="report-card" id="report-card">
-            <div id="report-state-loading" style="display:none;"><span class="report-loading-spinner"></span><span>PDF 생성 중…</span></div>
-            <div id="report-state-ok" style="display:none;"><a class="btn-download" href="/api/report/download" target="_blank">📄 PDF 보고서 다운로드</a></div>
-            <div id="report-state-error" style="display:none;"></div>
-          </div>
-          <div class="result-card" id="result-card">
-            <div id="verdict-name"></div><div id="verdict-inn"></div>
-            <div id="verdict-badge" class="verdict-badge v-none"></div>
-            <div class="traffic-light">
-              <div class="tl-lamp tl-red"    id="tl-red"></div>
-              <div class="tl-lamp tl-yellow" id="tl-yellow"></div>
-              <div class="tl-lamp tl-green"  id="tl-green"></div>
-            </div>
-            <div id="basis-market-medical"></div><div id="basis-regulatory"></div>
-            <div id="basis-trade"></div><div id="basis-pbs-line"></div>
-            <div id="entry-pathway"></div><div id="price-positioning-pbs"></div>
-            <div id="risks-conditions"></div>
-            <button id="btn-reanalyze"></button>
-          </div>
-          <div class="papers-card" id="papers-card"><div id="papers-list"></div></div>
-          <div id="p2r-product-name"></div>
-          <div id="p2r-verdict-badge" class="verdict-badge v-none"></div>
-          <div id="p2r-ref-price-text"></div>
-          <div id="p2r-exchange"></div>
-          <div id="p2r-final-price"></div>
-          <div id="p2r-scenarios"></div>
-          <div id="p2r-rationale"></div>
-          <!-- old accordion targets (no-op) -->
-          <div id="pb-p1"></div>
-          <div id="pb-p2"></div>
-          <div id="pb-p3-old"></div>
-          <span id="pa-p1"></span>
-          <span id="pa-p2"></span>
-          <span id="pa-p3"></span>
-          <div id="p2-wrap"></div>
-          <div id="p3-linked-product">
-            <span id="p3-product-label">—</span>
-          </div>
-        </div>
+              <div class="selector-card">
+                <div class="selector-row" style="margin-bottom:10px;">
+                  <select id="p3-report-select" style="flex:1;">
+                    <option value="">시장조사 보고서를 선택하세요.</option>
+                  </select>
+                  <button class="btn-analyze" id="btn-p3-run" onclick="runP3Pipeline()">
+                    <span id="p3-run-icon">▶</span> 바이어 발굴
+                  </button>
+                </div>
+                <div id="p3-loading-state" class="p1-simple-loading" style="display:none;">
+                  <span class="report-loading-spinner"></span>
+                  <span style="font-size:12px;color:var(--muted);">바이어 발굴 중…</span>
+                </div>
+                <div id="p3-error-msg" class="p2-note" style="display:none;color:var(--red);"></div>
+              </div>
 
-      </div><!-- /block-card 01 -->
+              <!-- 기업 평가 기준 (발굴 실행 후 표시) -->
+              <div class="p3-criteria-bar" id="p3-criteria-bar" style="display:none;">
+                <span class="p3-criteria-label">기업 평가 기준</span>
+                <span class="p3-criteria-hint">(체크된 항목들에 대해 평가 후 추천 순위 배열)</span>
+                <button class="p3-clear-btn" onclick="document.querySelectorAll('.p3-cb').forEach(c=>c.checked=false)">전체 해제</button>
+              </div>
+              <div class="p3-criteria-grid-sg" id="p3-criteria-grid" style="display:none;">
+                <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="타깃국가진출" data-weight="30" checked> ① 타깃국가 진출</label>
+                <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="GMP인증"     data-weight="25" checked> ② GMP 인증</label>
+                <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="수입이력"     data-weight="20"> ③ 수입 이력</label>
+                <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="공공채널"     data-weight="15"> ④ 공공 채널</label>
+                <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="pharmacy_chain" data-weight="10"> ⑤ 약국체인 운영</label>
+              </div>
 
-      <!-- ────── 02 바이어 발굴 ────── -->
-      <div class="block-card">
-        <div class="block-hd">
-          <div class="block-hd-l">
-            <span class="process-num">02</span>
-            <div>
-              <div class="block-title">바이어 발굴</div>
-            </div>
-          </div>
-          <button class="btn-final-dl" id="btn-final-report" onclick="downloadBuyerReport()" disabled style="display:none;">
-            ↓ 최종 보고서 다운로드
-          </button>
-        </div>
+              <!-- 실시간 로그 -->
+              <div class="log-box" id="p3-log-box" style="display:none;"></div>
 
-        <!-- 시장조사 보고서 선택 + 바이어 발굴 실행 -->
-        <div class="selector-row" style="margin-bottom:10px;">
-          <select id="p3-report-select" style="flex:1;">
-            <option value="">시장조사 보고서를 선택하세요.</option>
-          </select>
-          <button class="btn-analyze" id="btn-p3-run" onclick="runP3Pipeline()">
-            <span id="p3-run-icon">▶</span> 바이어 발굴 실행
-          </button>
-        </div>
+              <!-- 진행 단계 -->
+              <div class="progress-row" id="p3-progress-row">
+                <div class="prog-step" id="p3prog-crawl"><div class="prog-dot">1</div><div class="prog-label">1차 수집</div></div>
+                <div class="prog-step" id="p3prog-enrich"><div class="prog-dot">2</div><div class="prog-label">심층조사</div></div>
+                <div class="prog-step" id="p3prog-rank"><div class="prog-dot">3</div><div class="prog-label">랭킹 산출</div></div>
+                <div class="prog-step" id="p3prog-report"><div class="prog-dot">4</div><div class="prog-label">PDF 생성</div></div>
+              </div>
 
-        <!-- 기업 평가 기준 (바이어 발굴 실행 후 표시) -->
-        <div class="p3-criteria-bar" id="p3-criteria-bar" style="display:none;">
-          <span class="p3-criteria-label">기업 평가 기준</span>
-          <span class="p3-criteria-hint">(체크된 항목들에 대해 평가 후 추천 순위 배열)</span>
-          <button class="p3-clear-btn" onclick="document.querySelectorAll('.p3-cb').forEach(c=>c.checked=false)">전체 해제</button>
-        </div>
-        <div class="p3-criteria-grid-sg" id="p3-criteria-grid" style="display:none;">
-          <label class="p3-chk"><input type="checkbox" class="p3-cb" value="매출규모"> ① 매출규모</label>
-          <label class="p3-chk"><input type="checkbox" class="p3-cb" value="파이프라인"> ② 파이프라인</label>
-          <label class="p3-chk"><input type="checkbox" class="p3-cb" value="제조소보유"> ③ 제조소 보유</label>
-          <label class="p3-chk"><input type="checkbox" class="p3-cb" value="수입경험"> ④ 수입 경험</label>
-          <label class="p3-chk"><input type="checkbox" class="p3-cb" value="약국체인운영"> ⑤ 약국체인 운영</label>
-        </div>
+              <!-- Top 10 결과 -->
+              <div id="p3-result-section" style="display:none;">
+                <div class="p3-top-header">Top 10</div>
+                <div id="p3-cards" class="p3-top-list"></div>
+                <div style="margin-top:14px;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;">
+                  <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>
+                    📄 바이어 보고서 다운로드 (PDF)
+                  </button>
+                  <button class="btn-docx-dl" id="btn-p3-docx" onclick="downloadDocxReport('p3')">
+                    📄 바이어 보고서 DOCX
+                  </button>
+                  <button class="btn-docx-dl" id="btn-p3-pdf" onclick="downloadPdfReport('p3')" style="background:var(--accent,#e74c3c);">
+                    📑 바이어 보고서 PDF (₩KRW)
+                  </button>
+                </div>
+              </div>
 
-        <!-- 진행 상태 -->
-        <div class="progress-row" id="p3-progress-row">
-          <div class="prog-step" id="p3prog-crawl"><div class="prog-dot">1</div><div class="prog-label">1차 수집</div></div>
-          <div class="prog-step" id="p3prog-enrich"><div class="prog-dot">2</div><div class="prog-label">심층조사</div></div>
-          <div class="prog-step" id="p3prog-rank"><div class="prog-dot">3</div><div class="prog-label">랭킹 산출</div></div>
-          <div class="prog-step" id="p3prog-report"><div class="prog-dot">4</div><div class="prog-label">PDF 생성</div></div>
-        </div>
-        <div id="p3-error-msg" class="p2-note" style="display:none;color:var(--red);"></div>
+              <!-- 최종 통합 보고서 -->
+              <div id="final-report-row" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+                <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
+                  ※ 최종 보고서: 가격전략 + 바이어 + 시장조사 통합본
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn-docx-final" id="btn-final-docx" onclick="downloadDocxReport('final')">
+                    📋 최종 통합 보고서 DOCX 생성
+                  </button>
+                  <button class="btn-docx-final" id="btn-final-pdf" onclick="downloadPdfReport('final')" style="background:var(--accent,#e74c3c);">
+                    📑 최종 통합 보고서 PDF (₩KRW)
+                  </button>
+                </div>
+              </div>
 
-        <!-- Top 10 결과 -->
-        <div id="p3-result-section" style="display:none;">
-          <div class="p3-top-header">Top 10</div>
-          <div id="p3-cards" class="p3-top-list"></div>
-          <div style="margin-top:14px;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;">
-            <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>
-              📄 바이어 보고서 다운로드 (PDF)
-            </button>
-            <button class="btn-docx-dl" id="btn-p3-docx" onclick="downloadDocxReport('p3')">
-              📄 바이어 보고서 DOCX
-            </button>
-            <button class="btn-docx-dl" id="btn-p3-pdf" onclick="downloadPdfReport('p3')" style="background:var(--accent,#e74c3c);">
-              📑 바이어 보고서 PDF (₩KRW)
-            </button>
-          </div>
-        </div>
+            </div><!-- /process-body -->
+          </div><!-- /process-section -->
+        </div><!-- /col-right -->
 
-        <!-- 최종 통합 보고서 -->
-        <div id="final-report-row" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
-            ※ 최종 보고서: 가격전략 + 바이어 + 시장조사 통합본
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-docx-final" id="btn-final-docx" onclick="downloadDocxReport('final')">
-              📋 최종 통합 보고서 DOCX 생성
-            </button>
-            <button class="btn-docx-final" id="btn-final-pdf" onclick="downloadPdfReport('final')" style="background:var(--accent,#e74c3c);">
-              📑 최종 통합 보고서 PDF (₩KRW)
-            </button>
-          </div>
-        </div>
-
-      </div><!-- /block-card 02 -->
-
-    </div><!-- /two-col-blocks -->
-
+      </div><!-- /dashboard-grid -->
     </div><!-- /view-analysis -->
 
-  </div><!-- /main -->
+  </div><!-- /main page -->
 
   <!-- ════ 바이어 상세 모달 ════ -->
   <div id="buyer-modal-overlay" class="buyer-modal-overlay" onclick="closeBuyerModal(event)" style="display:none;">
@@ -544,15 +610,30 @@
 
 </main>
 
-<!-- 보고서 탭 플로팅 버튼 -->
-<button class="floating-report-btn" onclick="goTab('rep', document.querySelector('.tab:nth-child(3)'))">보고서 탭</button>
+<!-- ════ floating 보고서 컨테이너 ════ -->
+<div class="rep-float-wrap" id="rep-float-wrap">
+  <div class="rep-panel" id="rep-panel" style="display:none;">
+    <div class="rep-panel-header">
+      <span class="rep-panel-title">생성된 보고서</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-refresh" onclick="clearAllReports()" style="margin-top:0;font-size:11px;height:28px;padding:0 10px;">모두 지우기</button>
+        <button class="rep-panel-close" onclick="toggleRepPanel()">✕</button>
+      </div>
+    </div>
+    <div class="rep-panel-body" id="rep-panel-body">
+      <div class="rep-empty">아직 생성된 보고서가 없습니다.</div>
+    </div>
+  </div>
+  <button class="rep-float" id="rep-float" onclick="toggleRepPanel()">
+    <span class="rep-float-label">보고서 탭</span>
+  </button>
+</div>
 
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 <script>
-// toggleCustomForm
 function toggleCustomForm(el) {
   var body = document.getElementById('custom-form-body');
   if (!body) return;
@@ -560,7 +641,30 @@ function toggleCustomForm(el) {
   body.style.display = open ? 'none' : 'block';
   if (el) el.textContent = (open ? '▸' : '▾') + ' 신약 직접 분석';
 }
-// 지도 초기화는 app.js §13 initIdMap() 에서 처리 (중복 방지)
+
+function toggleRepPanel() {
+  var panel = document.getElementById('rep-panel');
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) syncRepPanel();
+}
+
+function syncRepPanel() {
+  var src = document.getElementById('report-tab-list');
+  var dst = document.getElementById('rep-panel-body');
+  if (src && dst) dst.innerHTML = src.innerHTML;
+}
+
+var _repObserver;
+(function() {
+  var src = document.getElementById('report-tab-list');
+  if (!src) return;
+  _repObserver = new MutationObserver(function() {
+    var panel = document.getElementById('rep-panel');
+    if (panel && panel.style.display !== 'none') syncRepPanel();
+  });
+  _repObserver.observe(src, { childList: true, subtree: true });
+})();
 </script>
 </body>
 </html>
