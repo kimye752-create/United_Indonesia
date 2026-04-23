@@ -244,20 +244,11 @@ async function loadMacro() {
   }
 }
 
-/** 거시지표 출처 각주 렌더링 */
+/** 거시지표 출처 각주 렌더링 — SG 팀장 양식 통일: 비활성화 */
 function _renderMacroFootnote(items) {
+  // no-op: footnote box removed per SG team-lead UI spec
   const el = document.getElementById('macro-footnote');
-  if (!el) return;
-  const lines = items.map((item, i) => {
-    const num  = `[${i + 1}]`;
-    const full = item.source_full || item.sub || '';
-    const url  = item.source_url  || '';
-    if (url) {
-      return `${num} ${_escHtml(full)} — <a href="${_escHtml(url)}" target="_blank" rel="noopener">${_escHtml(url)}</a>`;
-    }
-    return `${num} ${_escHtml(full)}`;
-  });
-  el.innerHTML = lines.map(l => `<span class="footnote-row">${l}</span>`).join('');
+  if (el) { el.innerHTML = ''; el.style.display = 'none'; el.remove(); }
 }
 
 function _setMacro(valId, val, srcId, src) {
