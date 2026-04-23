@@ -2531,6 +2531,53 @@ async function downloadDocxReport(reportType) {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §11-C. PDF 보고서 다운로드 (원화 KRW 3중 통화 포함)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * PDF 보고서를 서버에서 생성하여 다운로드합니다.
+ * IDR / USD / ₩KRW 3중 통화 표기 포함.
+ * @param {'p1'|'p2'|'p3'|'final'} reportType
+ */
+async function downloadPdfReport(reportType) {
+  const typeLabels = { p1: '시장조사', p2: '가격전략', p3: '바이어발굴', final: '최종통합보고서' };
+  const btnId = { p1: 'btn-p1-pdf', p2: 'btn-p2-pdf', p3: 'btn-p3-pdf', final: 'btn-final-pdf' };
+  const btn = document.getElementById(btnId[reportType]);
+
+  const origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ PDF 생성 중…'; }
+
+  try {
+    const pk = _currentKey || '';
+    const url = `/api/report/pdf/generate?report_type=${reportType}&product_key=${encodeURIComponent(pk)}`;
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      const msg = err.detail || '알 수 없는 오류';
+      alert(`PDF 생성 실패: ${msg}`);
+      return;
+    }
+    const blob = await resp.blob();
+    const dispHeader = resp.headers.get('Content-Disposition') || '';
+    const fnMatch = dispHeader.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+    const filename = fnMatch
+      ? decodeURIComponent(fnMatch[1])
+      : `인도네시아_${typeLabels[reportType]}_보고서.pdf`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  } catch (e) {
+    alert(`PDF 다운로드 오류: ${e.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §12. AHP 파트너 매칭 렌더러
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 

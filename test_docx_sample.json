@@ -1,0 +1,306 @@
+{
+  "product": {
+    "kor_name": "메트포르민 500mg 정",
+    "ingredient": "Metformin HCl",
+    "category": "당뇨병 치료제",
+    "dosage_form": "정제",
+    "strength": "500mg",
+    "target_country": "Indonesia",
+    "target_region": "Asia"
+  },
+  "p1": {
+    "verdict": "적합",
+    "verdict_label": "수출 적합",
+    "summary": "메트포르민 500mg은 인도네시아 공공의료 시장(BPJS/e-Katalog)에 적합한 1차 당뇨병 치료제로, FORNAS 등재 및 PBF 유통 경로 확보 시 즉시 진입 가능합니다.",
+    "population": "2억 8,100만 명",
+    "gdp_per_capita": "USD 4,941",
+    "pharma_market": "USD 87억",
+    "health_spend": "GDP 대비 약 3.2% (WHO 2023)",
+    "import_dep": "약 90%",
+    "disease_prevalence": "인도네시아 당뇨 유병률 10.7% (IDF 2023), 성인 약 1,970만 명",
+    "related_market": "당뇨병 치료제 시장 USD 8.2억 (2023), 연 9.5% 성장 전망",
+    "basis_market_medical": "제2형 당뇨병은 인도네시아 FORNAS 필수의약품 목록에 등재되어 BPJS-Kesehatan 급여 대상입니다. e-Katalog/LKPP를 통한 공공조달 입찰이 주요 진입 경로입니다.",
+    "basis_regulatory": "BPOM 등록 필요 (ML 코드: 공산품/수입의약품). 수입업체(PBF)가 MAH 역할 수행. 등록 기간 약 12~18개월.",
+    "bpom_reg": "ML 코드 취득 필요. 수입의약품(ML)은 현지 PBF(Pedagang Besar Farmasi)가 MAH 역할 수행. 등록 비용 약 $3,000~8,000. 기간 12~18개월.",
+    "entry_pathway": "1단계: PBF 파트너 발굴 및 MOU 체결\n2단계: BPOM ML 코드 등록 신청\n3단계: e-Katalog LKPP 등록\n4단계: BPJS-Kesehatan 급여 협상",
+    "basis_trade": "PBF(도매업체) → 공공병원/BPJS → 환자. 관세 5%, PPN(부가세) 11%, TKDN 요건 해당 없음.",
+    "ref_price_text": "FORNAS 기준가 IDR 285/정 (e-Katalog 2024). 민간시장 IDR 450~600/정.",
+    "price_positioning_pbs": "공공시장(BPJS): IDR 280~300/정 목표. 민간시장: IDR 500~650/정 포지셔닝 가능.",
+    "ekatalog_price_hint": "e-Katalog 등록가 IDR 270~310/정 범위 경쟁",
+    "risks_conditions": "▸ BPOM 등록 지연 리스크: 12~18개월 소요\n▸ 현지 PBF 의존도: 신뢰할 수 있는 파트너 확보 필수\n▸ 가격 경쟁: 인도 제네릭과 가격 경쟁 예상",
+    "papers": [
+      {
+        "title": "Prevalence of Type 2 Diabetes in Indonesia",
+        "summary_ko": "2023년 IDF 보고서에 따르면 인도네시아 당뇨 유병률은 10.7%로 동남아 최고 수준입니다.",
+        "url": "https://diabetesatlas.org/indonesia"
+      }
+    ],
+    "sources": [
+      "BPOM 공식 사이트",
+      "IDF Diabetes Atlas 2023",
+      "e-Katalog LKPP 2024"
+    ],
+    "hs_code": "3004.90"
+  },
+  "p2": {
+    "exchange_rates": {
+      "usd_idr": 15750,
+      "idr_krw": 0.085
+    },
+    "extracted": {
+      "dosage_form": "정제",
+      "strength": "500mg",
+      "pack_size": 100,
+      "unit": "정",
+      "public_market": true,
+      "private_market": true
+    },
+    "analysis": {
+      "scenarios": [
+        {
+          "name": "저가 진입",
+          "price_idr": 280,
+          "fob_result_idr": 185,
+          "reason": "e-Katalog 최저가 공략, BPJS 급여 확보 우선",
+          "fob_factors": [
+            {
+              "name": "수입관세",
+              "type": "pct_deduct",
+              "value": 5.0,
+              "rationale": "인도네시아 의약품 관세"
+            },
+            {
+              "name": "유통사 마진",
+              "type": "pct_deduct",
+              "value": 18.0,
+              "rationale": "PBF 도매 마진"
+            },
+            {
+              "name": "병원·BPJS 마진",
+              "type": "pct_deduct",
+              "value": 15.0,
+              "rationale": "공공 병원 마진"
+            },
+            {
+              "name": "운임·보험",
+              "type": "pct_deduct",
+              "value": 4.0,
+              "rationale": "CIF→FOB"
+            }
+          ]
+        },
+        {
+          "name": "기준",
+          "price_idr": 300,
+          "fob_result_idr": 200,
+          "reason": "FORNAS 기준가 대비 경쟁력 있는 포지셔닝",
+          "fob_factors": [
+            {
+              "name": "수입관세",
+              "type": "pct_deduct",
+              "value": 5.0,
+              "rationale": "인도네시아 의약품 관세"
+            },
+            {
+              "name": "유통사 마진",
+              "type": "pct_deduct",
+              "value": 18.0,
+              "rationale": "PBF 도매 마진"
+            },
+            {
+              "name": "병원·BPJS 마진",
+              "type": "pct_deduct",
+              "value": 15.0,
+              "rationale": "공공 병원 마진"
+            },
+            {
+              "name": "운임·보험",
+              "type": "pct_deduct",
+              "value": 4.0,
+              "rationale": "CIF→FOB"
+            }
+          ]
+        },
+        {
+          "name": "프리미엄",
+          "price_idr": 550,
+          "fob_result_idr": 310,
+          "reason": "민간병원·약국 대상 브랜드 프리미엄 전략",
+          "fob_factors": [
+            {
+              "name": "수입관세",
+              "type": "pct_deduct",
+              "value": 5.0,
+              "rationale": "인도네시아 의약품 관세"
+            },
+            {
+              "name": "유통사 마진",
+              "type": "pct_deduct",
+              "value": 23.0,
+              "rationale": "민간 도매 마진"
+            },
+            {
+              "name": "소매 마진",
+              "type": "pct_deduct",
+              "value": 35.0,
+              "rationale": "약국·병원 소매 마진"
+            },
+            {
+              "name": "PPN 부가세",
+              "type": "pct_deduct",
+              "value": 11.0,
+              "rationale": "부가세 11%"
+            },
+            {
+              "name": "운임·보험",
+              "type": "pct_deduct",
+              "value": 4.0,
+              "rationale": "CIF→FOB"
+            }
+          ]
+        }
+      ],
+      "recommendation": "기준 시나리오(IDR 300/정)로 e-Katalog 등록을 우선하고, 공공시장 점유 후 민간 프리미엄 전략으로 확장을 권장합니다.",
+      "public_market_strategy": "BPJS-Kesehatan 급여 대상 품목으로 e-Katalog 등록 후 공공병원 납품",
+      "private_market_strategy": "Halodoc·K24Klik 등 디지털 약국 채널과 민간병원 대상 브랜드 마케팅"
+    }
+  },
+  "p3": {
+    "buyers": [
+      {
+        "company_name": "PT Kimia Farma Tbk",
+        "country": "Indonesia",
+        "email": "info@kimiafarma.co.id",
+        "website": "https://kimiafarma.co.id",
+        "category": "Manufacturer & Distributor",
+        "scores": {
+          "타깃국가진출": 100,
+          "GMP인증": 100,
+          "공공채널": 100
+        },
+        "enriched": {
+          "revenue": "$500M+",
+          "employees": "5000+",
+          "founded": "1971",
+          "territories": [
+            "Indonesia",
+            "Malaysia",
+            "Singapore"
+          ],
+          "has_target_country_presence": true,
+          "has_gmp": true,
+          "import_history": true,
+          "procurement_history": true,
+          "has_pharmacy_chain": true,
+          "public_channel": true,
+          "private_channel": true,
+          "mah_capable": true,
+          "korea_experience": "있음(확인)",
+          "certifications": [
+            "BPOM GMP",
+            "ISO 9001",
+            "CPOB"
+          ],
+          "source_urls": [
+            "https://kimiafarma.co.id",
+            "https://lkpp.go.id"
+          ],
+          "company_overview_kr": "PT Kimia Farma는 인도네시아 국영 제약기업으로, 1971년 설립 후 현재 1,200개 이상의 약국 체인을 운영 중입니다. BPJS-Kesehatan 공공조달의 주요 파트너입니다.",
+          "recommendation_reason": "메트포르민 500mg과 같은 당뇨병 치료제 분야에서 FORNAS 목록 공급 경험이 풍부합니다. e-Katalog 등록 및 BPJS 급여 청구 처리 능력을 보유하고 있어 공공시장 진입에 최적화된 파트너입니다."
+        }
+      },
+      {
+        "company_name": "PT Dexa Medica",
+        "country": "Indonesia",
+        "email": "contact@dexa-medica.com",
+        "website": "https://dexa-medica.com",
+        "category": "Pharmaceutical Manufacturer",
+        "scores": {
+          "타깃국가진출": 100,
+          "GMP인증": 100,
+          "수입이력": 80
+        },
+        "enriched": {
+          "revenue": "$200M+",
+          "employees": "2000+",
+          "founded": "1969",
+          "territories": [
+            "Indonesia",
+            "ASEAN"
+          ],
+          "has_target_country_presence": true,
+          "has_gmp": true,
+          "import_history": true,
+          "procurement_history": false,
+          "has_pharmacy_chain": false,
+          "public_channel": true,
+          "private_channel": true,
+          "mah_capable": true,
+          "korea_experience": "있음(미확인)",
+          "certifications": [
+            "BPOM GMP",
+            "EU GMP",
+            "ISO 14001"
+          ],
+          "source_urls": [
+            "https://dexa-medica.com"
+          ],
+          "company_overview_kr": "PT Dexa Medica는 인도네시아 민간 제약기업으로 제네릭 및 오리지널 의약품을 생산합니다. EU GMP 인증을 보유하고 있습니다.",
+          "recommendation_reason": "EU GMP 인증 보유로 품질 기준에 부합하며, 메트포르민 계열 제품의 현지 생산 및 수입 경험이 있습니다. MAH 대행 역량을 갖추고 있어 BPOM 등록 파트너로 적합합니다."
+        }
+      },
+      {
+        "company_name": "PT Kalbe Farma Tbk",
+        "country": "Indonesia",
+        "email": "investor@kalbe.co.id",
+        "website": "https://kalbe.co.id",
+        "category": "Pharmaceutical Manufacturer",
+        "scores": {
+          "타깃국가진출": 100,
+          "GMP인증": 100,
+          "민간채널": 100
+        },
+        "enriched": {
+          "revenue": "$1B+",
+          "employees": "10000+",
+          "founded": "1966",
+          "territories": [
+            "Indonesia",
+            "Malaysia",
+            "Thailand",
+            "Vietnam",
+            "Philippines"
+          ],
+          "has_target_country_presence": true,
+          "has_gmp": true,
+          "import_history": false,
+          "procurement_history": true,
+          "has_pharmacy_chain": false,
+          "public_channel": true,
+          "private_channel": true,
+          "mah_capable": true,
+          "korea_experience": "없음",
+          "certifications": [
+            "BPOM GMP",
+            "ISO 9001",
+            "ASEAN GMP"
+          ],
+          "source_urls": [
+            "https://kalbe.co.id"
+          ],
+          "company_overview_kr": "PT Kalbe Farma는 인도네시아 최대 상장 제약기업으로, 연매출 USD 10억 이상, ASEAN 전역에 판매 네트워크를 보유합니다.",
+          "recommendation_reason": "ASEAN 최대 규모의 제약 유통 네트워크를 활용한 광역 배송 역량을 보유합니다. 공공 및 민간 채널 모두에서 입지가 강하며, 한국 기업과의 파트너십 구축에 적극적입니다."
+        }
+      }
+    ]
+  },
+  "meta": {
+    "country": "인도네시아",
+    "company": "한국유나이티드제약(주)",
+    "date": "2026년 04월 23일",
+    "product_name": "메트포르민 500mg 정",
+    "inn": "Metformin HCl 500mg",
+    "product_key": "ID_metformin_500",
+    "hs_code": "3004.90"
+  }
+}

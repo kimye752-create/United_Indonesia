@@ -1029,6 +1029,166 @@ async def generate_docx_report(
     )
 
 
+# ── Indonesia PDF 보고서 생성 ─────────────────────────────────────────────────
+
+@app.get("/api/report/pdf/generate")
+async def generate_pdf_report(
+    report_type: str = "final",  # p1 | p2 | p3 | final
+    product_key: str = "",
+) -> Any:
+    """analysis/id_report_generator.py를 호출해 인도네시아 PDF 보고서를 생성하고 반환.
+
+    DOCX 엔드포인트(/api/report/docx/generate)와 동일한 데이터 수집 로직 사용.
+    원화(KRW) + IDR + USD 3중 통화 표기 포함.
+    """
+    import re as _re_pdf
+    from datetime import datetime, timezone as _tz_pdf
+
+    # ── 데이터 수집 (DOCX 엔드포인트와 동일) ──────────────────────────────────
+    p1_result = None
+    for key, task in _pipeline_tasks.items():
+        if task.get("result"):
+            p1_result = task["result"]
+            if not product_key:
+                product_key = key
+            break
+    if p1_result is None and _custom_task.get("result"):
+        p1_result = _custom_task["result"]
+
+    p2_extracted  = _p2_ai_task.get("extracted")    if _p2_ai_task else None
+    p2_analysis   = _p2_ai_task.get("analysis")     if _p2_ai_task else None
+    p2_rates      = _p2_ai_task.get("exchange_rates") if _p2_ai_task else None
+    p3_buyers     = _buyer_task.get("buyers", [])   if _buyer_task else []
+
+    prod_label = _PROD_LABELS.get(product_key, p1_result.get("trade_name", "미상") if p1_result else "미상")
+    inn_label  = (p1_result.get("inn", "") if p1_result else
+                  (p2_extracted.get("product_name", "") if p2_extracted else ""))
+    today_str  = datetime.now(_tz_pdf.utc).strftime("%Y년 %m월 %d일")
+
+    _hs_code = ""
+    if p1_result:
+        _hs_code = p1_result.get("hs_code", "")
+    if not _hs_code and product_key:
+        from analysis.id_export_analyzer import _get_product_meta as _get_pm_pdf
+        for _pm in _get_pm_pdf():
+            if _pm.get("product_id") == product_key:
+                _hs_code = _pm.get("hs_code", "")
+                break
+
+    data_json: dict[str, Any] = {
+        "meta": {
+            "country":      "인도네시아",
+            "company":      "한국유나이티드제약(주)",
+            "date":         today_str,
+            "product_name": prod_label,
+            "inn":          inn_label,
+            "product_key":  product_key,
+            "hs_code":      _hs_code,
+        },
+    }
+
+    from utils.id_macro import get_id_macro as _get_macro_pdf
+    _macro_map_pdf = {m["label"]: m["value"] for m in _get_macro_pdf()}
+
+    if p1_result:
+        _ref_price = (
+            p1_result.get("ref_price_text") or
+            p1_result.get("price_positioning_pbs") or
+            (p2_extracted.get("ref_price_text") if p2_extracted else "") or ""
+        )
+        _entry = p1_result.get("entry_pathway") or p1_result.get("basis_procurement") or ""
+        _raw_sources = p1_result.get("sources", [])
+        _sources_list: list[str] = []
+        for s in _raw_sources:
+            if isinstance(s, dict):
+                _sources_list.append(f"{s.get('name','')}{' — '+s.get('description','') if s.get('description') else ''}")
+            elif s:
+                _sources_list.append(str(s))
+        _papers = p1_result.get("references") or p1_result.get("papers", [])
+
+        data_json["p1"] = {
+            "product_name":         p1_result.get("trade_name", prod_label),
+            "inn":                  p1_result.get("inn", inn_label),
+            "hs_code":              p1_result.get("hs_code", _hs_code),
+            "verdict":              p1_result.get("verdict", "미상"),
+            "verdict_label":        {"적합": "수출 적합", "조건부": "조건부 적합", "부적합": "수출 부적합"}.get(
+                                        p1_result.get("verdict", ""), p1_result.get("verdict", "미분석")),
+            "summary":              p1_result.get("summary") or p1_result.get("rationale", ""),
+            "population":           p1_result.get("population") or _macro_map_pdf.get("인구", "2억 8,100만 명"),
+            "gdp_per_capita":       p1_result.get("gdp_per_capita") or _macro_map_pdf.get("1인당 GDP", "USD 4,941"),
+            "pharma_market":        p1_result.get("pharma_market") or _macro_map_pdf.get("의약품 시장 규모", "USD 87억"),
+            "health_spend":         p1_result.get("health_spend", "GDP 대비 약 3.2% (WHO 2023)"),
+            "import_dep":           p1_result.get("import_dep") or _macro_map_pdf.get("의약품 수입 의존도", "약 90%"),
+            "disease_prevalence":   p1_result.get("disease_prevalence", ""),
+            "related_market":       p1_result.get("related_market", ""),
+            "basis_market_medical": p1_result.get("basis_market_medical", ""),
+            "bpom_reg":             p1_result.get("bpom_reg", "") or p1_result.get("basis_regulatory", ""),
+            "entry_pathway":        _entry,
+            "basis_trade":          p1_result.get("basis_trade") or p1_result.get("basis_distribution", ""),
+            "ref_price_text":       p1_result.get("ref_price_text", ""),
+            "price_positioning_pbs": p1_result.get("price_positioning_pbs") or _ref_price,
+            "ekatalog_price_hint":  p1_result.get("ekatalog_price_hint", ""),
+            "risks_conditions":     p1_result.get("risks_conditions", ""),
+            "papers":               _papers,
+            "sources":              _sources_list,
+        }
+    else:
+        data_json["p1"] = None
+
+    if p2_analysis:
+        data_json["p2"] = {
+            "extracted":      p2_extracted or {},
+            "analysis":       p2_analysis,
+            "exchange_rates": p2_rates or {"usd_idr": 16200, "idr_krw": 0.082, "usd_krw": 1399},
+        }
+    else:
+        data_json["p2"] = None
+
+    if p3_buyers:
+        data_json["p3"] = {"buyers": p3_buyers}
+    else:
+        data_json["p3"] = None
+
+    # ── 타입 검증 ────────────────────────────────────────────────────────────
+    if report_type not in ("p1", "p2", "p3", "final"):
+        raise HTTPException(400, f"report_type must be p1|p2|p3|final, got: {report_type}")
+
+    needed = {"p1": p1_result, "p2": p2_analysis, "p3": p3_buyers or None}
+    if report_type == "final":
+        missing = [k for k, v in needed.items() if not v]
+        if missing:
+            raise HTTPException(400, f"최종 보고서 생성에 필요한 데이터가 없습니다: {', '.join(missing).upper()}. 각 분석을 먼저 실행하세요.")
+    elif report_type == "p1" and not p1_result:
+        raise HTTPException(400, "P1(시장조사) 분석이 완료되지 않았습니다.")
+    elif report_type == "p2" and not p2_analysis:
+        raise HTTPException(400, "P2(가격전략) 분석이 완료되지 않았습니다.")
+    elif report_type == "p3" and not p3_buyers:
+        raise HTTPException(400, "P3(바이어) 분석이 완료되지 않았습니다.")
+
+    # ── PDF 생성 ────────────────────────────────────────────────────────────
+    _ts_pdf = datetime.now(_tz_pdf.utc).strftime("%Y%m%d_%H%M%S")
+    _safe_prod_pdf = _re_pdf.sub(r"[^\w가-힣]", "_", prod_label)[:20] or "product"
+    pdf_name   = f"ID_{report_type}_{_safe_prod_pdf}_{_ts_pdf}.pdf"
+    pdf_path   = ROOT / "reports" / pdf_name
+    (ROOT / "reports").mkdir(parents=True, exist_ok=True)
+
+    from analysis.id_report_generator import generate as _gen_pdf
+    await asyncio.to_thread(_gen_pdf, data_json, pdf_path, report_type)
+
+    if not pdf_path.is_file():
+        raise HTTPException(500, "PDF 파일이 생성되지 않았습니다.")
+
+    type_labels_pdf = {"p1": "시장조사", "p2": "가격전략", "p3": "바이어발굴", "final": "최종보고서"}
+    dl_name_pdf = f"인도네시아_{type_labels_pdf.get(report_type, report_type)}_{_safe_prod_pdf}_{_ts_pdf}.pdf"
+
+    return FileResponse(
+        str(pdf_path),
+        media_type="application/pdf",
+        filename=dl_name_pdf,
+        content_disposition_type="attachment",
+    )
+
+
 # ── 2공정 가격 전략 PDF ───────────────────────────────────────────────────────
 
 class P2ReportBody(BaseModel):

@@ -137,9 +137,12 @@
 
         <!-- 완료 배너 + P1 DOCX 다운로드 -->
         <div class="p1-result-note" id="p1-result-note" style="display:none;"></div>
-        <div id="p1-docx-row" style="display:none;margin-top:6px;">
+        <div id="p1-docx-row" style="display:none;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn-docx-dl" id="btn-p1-docx" onclick="downloadDocxReport('p1')">
             📄 시장조사 보고서 DOCX
+          </button>
+          <button class="btn-docx-dl" id="btn-p1-pdf" onclick="downloadPdfReport('p1')" style="background:var(--accent,#e74c3c);">
+            📑 시장조사 보고서 PDF (₩KRW)
           </button>
         </div>
 
@@ -286,9 +289,12 @@
           <div style="margin-top:10px;">
             <div id="p2-product-list"></div>
             <div id="p2-report-dl-state" style="margin-top:12px;"></div>
-            <div id="p2-docx-row" style="margin-top:8px;">
+            <div id="p2-docx-row" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn-docx-dl" id="btn-p2-docx" onclick="downloadDocxReport('p2')">
                 📄 가격전략 보고서 DOCX
+              </button>
+              <button class="btn-docx-dl" id="btn-p2-pdf" onclick="downloadPdfReport('p2')" style="background:var(--accent,#e74c3c);">
+                📑 가격전략 보고서 PDF (₩KRW)
               </button>
             </div>
           </div>
@@ -441,12 +447,15 @@
         <div id="p3-result-section" style="display:none;">
           <div class="p3-top-header">Top 10</div>
           <div id="p3-cards" class="p3-top-list"></div>
-          <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+          <div style="margin-top:14px;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;">
             <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>
               📄 바이어 보고서 다운로드 (PDF)
             </button>
             <button class="btn-docx-dl" id="btn-p3-docx" onclick="downloadDocxReport('p3')">
               📄 바이어 보고서 DOCX
+            </button>
+            <button class="btn-docx-dl" id="btn-p3-pdf" onclick="downloadPdfReport('p3')" style="background:var(--accent,#e74c3c);">
+              📑 바이어 보고서 PDF (₩KRW)
             </button>
           </div>
         </div>
@@ -456,9 +465,14 @@
           <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
             ※ 최종 보고서: 가격전략 + 바이어 + 시장조사 통합본
           </div>
-          <button class="btn-docx-final" id="btn-final-docx" onclick="downloadDocxReport('final')">
-            📋 최종 통합 보고서 DOCX 생성
-          </button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-docx-final" id="btn-final-docx" onclick="downloadDocxReport('final')">
+              📋 최종 통합 보고서 DOCX 생성
+            </button>
+            <button class="btn-docx-final" id="btn-final-pdf" onclick="downloadPdfReport('final')" style="background:var(--accent,#e74c3c);">
+              📑 최종 통합 보고서 PDF (₩KRW)
+            </button>
+          </div>
         </div>
 
       </div><!-- /block-card 02 -->
