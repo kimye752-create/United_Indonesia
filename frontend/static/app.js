@@ -2712,8 +2712,8 @@ async function loadAhpPartners() {
   map.setView([-2.5, 118.0], 4);
   L.marker([-6.2088, 106.8456], { icon })
     .addTo(map)
-    .bindPopup('<b>Jakarta</b><br>인도네시아 수도 · 주요 의약품 유통 거점')
-    .openPopup();
+    .bindPopup('<b>Jakarta</b><br>인도네시아 수도 · 주요 의약품 유통 거점');
+    // SG 팀장 디자인: 초기 로드 시 팝업 자동 오픈 안함 (마커 클릭 시에만 표시)
   window._idMap = map;   // switchView() 에서 invalidateSize() 호출용
   setTimeout(() => map.invalidateSize(), 200);
 })();
