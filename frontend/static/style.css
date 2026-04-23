@@ -542,6 +542,7 @@ a.news-card:hover {
 
 select {
   flex: 1;
+  min-width: 0;
   padding: 10px 40px 10px 14px;
   border-radius: 10px;
   font-size: 14px;
@@ -568,6 +569,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: background .15s, opacity .15s;
   white-space: nowrap;
   display: flex;
