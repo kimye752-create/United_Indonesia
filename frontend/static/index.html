@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/static/images/favicon.png"/>
   <link rel="shortcut icon" type="image/png" href="/static/images/favicon.png"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="/static/style.css?v=25"/>
+  <link rel="stylesheet" href="/static/style.css?v=26"/>
 </head>
 <body>
 <div class="app">
@@ -312,8 +312,8 @@
                 </div>
               </div>
 
-              <!-- 분석 결과 카드 -->
-              <div class="result-card" id="result-card">
+              <!-- 분석 결과 카드 (SG 팀장 디자인: 화면에는 숨김, 데이터만 내부 보관) -->
+              <div class="result-card" id="result-card" style="display:none !important;">
                 <div class="rs-block">
                   <div class="card-title"><span class="card-title-dot"></span> 분석 결과</div>
                   <div class="rs-product-row">
@@ -368,14 +368,14 @@
                 </div>
               </div>
 
-              <!-- 관련 논문 카드 -->
-              <div class="papers-card" id="papers-card">
+              <!-- 관련 논문 카드 (SG 팀장 디자인: 숨김) -->
+              <div class="papers-card" id="papers-card" style="display:none !important;">
                 <div class="card-title"><span class="card-title-dot"></span> 관련 논문</div>
                 <div id="papers-list"></div>
               </div>
 
-              <!-- PDF 보고서 상태 카드 -->
-              <div class="report-card" id="report-card">
+              <!-- PDF 보고서 상태 카드 (SG 팀장 디자인: 숨김) -->
+              <div class="report-card" id="report-card" style="display:none !important;">
                 <div id="report-state-loading" style="display:none;">
                   <span class="report-loading-spinner"></span><span>PDF 생성 중…</span>
                 </div>
@@ -594,7 +594,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/app.js?v=22"></script>
+<script src="/static/app.js?v=23"></script>
 <script>
 function toggleCustomForm(el) {
   var body = document.getElementById('custom-form-body');

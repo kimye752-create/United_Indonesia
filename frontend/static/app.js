@@ -1047,7 +1047,7 @@ function openFobModal(market, col) {
   _fobFactorsOrig = factors.map(f => ({ ...f }));
   _fobFactors     = factors.map(f => ({ ...f }));
 
-  const NAMES = { agg: '저가 진입', avg: '기준', cons: '프리미엄' };
+  const NAMES = { agg: '저가 진입', avg: '기준가', cons: '프리미엄' };
   const MKT   = { public: '공공 시장', private: '민간 시장' };
   _setText('fob-modal-title', `${NAMES[col]} — 역산 · 옵션 편집 [${MKT[market]}]`);
 
